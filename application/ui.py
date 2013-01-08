@@ -8,6 +8,7 @@ import dycast
 import datetime
 import optparse
 import fileinput
+import ttk
 
 usage = "usage: %prog [options]"
 p = optparse.OptionParser(usage)
@@ -20,11 +21,7 @@ options, arguments = p.parse_args()
 
 config_file = options.config
 
-my_bgcolor = "gray"
-my_panelcolor = "light gray"
-my_highlightcolor = "white"
-
-class DYCAST_control(Tkinter.Frame):
+class DYCAST_control(ttk.Frame):
     def connect_to_DYCAST(self):
         dycast.read_config(config_file)
         dycast.init_db()
@@ -147,20 +144,86 @@ class DYCAST_control(Tkinter.Frame):
                 )
                 break
             curdate = curdate + oneday
-        # Working here.
+        # Working here. TODO: what was I doing?
 
         self.export_risk_button["state"] = Tkinter.NORMAL
         self.status_label["text"] = "Status: ready"
         self.status_label.update_idletasks()
  
-
+    def run_kappa(self):
+        self.status_label["text"] = "Status: performing kappa analysis..."
+        self.status_label.update_idletasks()
+        self.kappa_button["state"] = Tkinter.DISABLED
+        
+        (startdate, enddate) = self.get_date_range(
+            self.kappa_startdate_entry.get(),
+            self.kappa_enddate_entry.get()
+        )
+        window_start = int(self.kappa_window_start_entry.get())
+        window_end = int(self.kappa_window_end_entry.get())
+        window_step = int(self.kappa_window_step_entry.get())
+        lag_start = int(self.kappa_lag_start_entry.get())
+        lag_end = int(self.kappa_lag_end_entry.get())
+        lag_step = int(self.kappa_lag_step_entry.get())
+        
+        useanalysisarea = False
+        
+        if window_start > window_end:
+            tkMessageBox.showwarning(
+                "Kappa",
+                "value for window_start must be less than or equal to window_end"
+            )
+        elif lag_start > lag_end:
+            tkMessageBox.showwarning(
+                "Kappa",
+                "value for lag_start must be less than or equal to lag_end"
+            )
+        elif window_step < 1:
+            tkMessageBox.showwarning(
+                "Kappa",
+                "value for window_step must be greater than or equal to 1"
+            )
+        elif lag_step < 1:
+            tkMessageBox.showwarning(
+                "Kappa",
+                "value for lag_step must be greater than or equal to 1"
+            )
+        else:             
+            for window in range(window_start, window_end+window_step, window_step):
+                for lag in range(lag_start, lag_end+lag_step, lag_step):
+                    self.status_label["text"] = "Status: performing kappa analysis... window %s, lag %s" % (window, lag)
+                    self.status_label.update_idletasks()
+                    try:
+                        if useanalysisarea:
+                            print dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id())
+                        else:
+                            print dycast.kappa(window, lag, startdate, enddate, None)
+                    except Exception, inst:
+                        tkMessageBox.showwarning(
+                            "Kappa",
+                            "Could not calculate kappa for window %s, lag %s, startdate %s, enddate %s: %s" % (window, lag, startdate, enddate, inst)
+                        )
+        
+        self.kappa_button["state"] = Tkinter.NORMAL
+        self.status_label["text"] = "Status: ready"
+        self.status_label.update_idletasks()
+        
     def createWidgets(self):
-        self.label1 = Tkinter.Label(self, bg=my_bgcolor)
-        self.label1["text"] = "DYCAST actions:\nselect from the options below\n"
-        self.label1["justify"] = Tkinter.LEFT
-        self.label1.pack(side=Tkinter.TOP, anchor=Tkinter.W)
+        
+        self.n = ttk.Notebook(self)
+            
+        self.n.pack(
+           side=Tkinter.TOP,
+           anchor=Tkinter.W,
+           fill=Tkinter.BOTH,
+           ipadx=5, ipady=5, padx=5, pady=5,
+           )
+        
+        
+        self.daily_frame = ttk.Frame(self.n)
+        self.postseason_frame = ttk.Frame(self.n)
 
-        self.bird_frame = Tkinter.Frame(self, background=my_panelcolor, borderwidth=2, relief=Tkinter.RAISED)
+        self.bird_frame = ttk.Frame(self.daily_frame, borderwidth=2, relief=Tkinter.RAISED)
         self.bird_frame.pack(
             side=Tkinter.TOP,
             anchor=Tkinter.W,
@@ -168,28 +231,28 @@ class DYCAST_control(Tkinter.Frame):
             ipadx=5, ipady=5, padx=5, pady=5,
             )
 
-        self.label2 = Tkinter.Label(self.bird_frame, bg=my_panelcolor)
+        self.label2 = ttk.Label(self.bird_frame)
         self.label2["text"] = "load dead birds from file(s):\n"
         self.label2["justify"] = Tkinter.LEFT
         self.label2.pack(side=Tkinter.TOP, anchor=Tkinter.W)
 
-        self.load_birds_entry = Tkinter.Entry(self.bird_frame)
+        self.load_birds_entry = ttk.Entry(self.bird_frame)
 
         self.load_birds_entry.pack({"side": "left", "expand": 1, "fill": "x"})
 
-        self.load_birds_button = Tkinter.Button(self.bird_frame, background=my_panelcolor)
+        self.load_birds_button = ttk.Button(self.bird_frame)
         self.load_birds_button["text"] = "load birds"
         self.load_birds_button["command"] =  self.load_birds
 
         self.load_birds_button.pack({"side": "right"})
 
-        self.bird_file_button = Tkinter.Button(self.bird_frame, bg=my_panelcolor)
+        self.bird_file_button = ttk.Button(self.bird_frame)
         self.bird_file_button["text"] = "select files"
         self.bird_file_button["command"] =  self.set_bird_file
 
         self.bird_file_button.pack({"side": "right"})
 
-        self.risk_frame = Tkinter.Frame(self, background=my_panelcolor, borderwidth=2, relief=Tkinter.RAISED)
+        self.risk_frame = ttk.Frame(self.daily_frame, borderwidth=2, relief=Tkinter.RAISED)
         self.risk_frame.pack(
             side=Tkinter.TOP,
             anchor=Tkinter.W,
@@ -197,34 +260,34 @@ class DYCAST_control(Tkinter.Frame):
             ipadx=5, ipady=5, padx=5, pady=5,
             )
 
-        self.label3 = Tkinter.Label(self.risk_frame, bg=my_panelcolor)
+        self.label3 = ttk.Label(self.risk_frame)
         self.label3["text"] = "generate daily risk for the following date(s): (in YYYY-MM-DD format)\n"
         self.label3["justify"] = Tkinter.LEFT
         self.label3.pack(side=Tkinter.TOP, anchor=Tkinter.W)
 
-        self.label_entry1 = Tkinter.Label(self.risk_frame, bg=my_panelcolor)
+        self.label_entry1 = ttk.Label(self.risk_frame)
         self.label_entry1["text"] = "start date:"
         self.label_entry1.pack({"side": "left"})
 
-        self.daily_risk_entry1 = Tkinter.Entry(self.risk_frame)
+        self.daily_risk_entry1 = ttk.Entry(self.risk_frame)
         self.daily_risk_entry1.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.daily_risk_entry1.pack({"side": "left"})
 
-        self.label_entry2 = Tkinter.Label(self.risk_frame, bg=my_panelcolor)
+        self.label_entry2 = ttk.Label(self.risk_frame)
         self.label_entry2["text"] = "end date:"
         self.label_entry2.pack({"side": "left"})
 
-        self.daily_risk_entry2 = Tkinter.Entry(self.risk_frame)
+        self.daily_risk_entry2 = ttk.Entry(self.risk_frame)
         self.daily_risk_entry2.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.daily_risk_entry2.pack({"side": "left"})
 
-        self.daily_risk_button = Tkinter.Button(self.risk_frame, bg=my_panelcolor)
+        self.daily_risk_button = ttk.Button(self.risk_frame)
         self.daily_risk_button["text"] = "run risk"
         self.daily_risk_button["command"] = self.run_daily_risk
 
         self.daily_risk_button.pack({"side": "right"})
 
-        self.export_frame = Tkinter.Frame(self, background=my_panelcolor, borderwidth=2, relief=Tkinter.RAISED)
+        self.export_frame = ttk.Frame(self.daily_frame, borderwidth=2, relief=Tkinter.RAISED)
         self.export_frame.pack(
             side=Tkinter.TOP,
             anchor=Tkinter.W,
@@ -232,62 +295,150 @@ class DYCAST_control(Tkinter.Frame):
             ipadx=5, ipady=5, padx=5, pady=5,
             )
 
-        self.label3 = Tkinter.Label(self.export_frame, bg=my_panelcolor)
+        self.label3 = ttk.Label(self.export_frame)
         self.label3["text"] = "export daily risk for the following date(s): (in YYYY-MM-DD format)\n"
         self.label3["justify"] = Tkinter.LEFT
         self.label3.pack(side=Tkinter.TOP, anchor=Tkinter.W)
 
-        self.export_dir_frame = Tkinter.Frame(self.export_frame, background=my_panelcolor)
+        self.export_dir_frame = ttk.Frame(self.export_frame)
         self.export_dir_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
 
-        self.label_export_dir_entry = Tkinter.Label(self.export_dir_frame, bg=my_panelcolor)
+        self.label_export_dir_entry = ttk.Label(self.export_dir_frame)
         self.label_export_dir_entry["text"] = "export directory:"
         self.label_export_dir_entry.pack({"side": "left", "anchor": "w"})
 
-        self.export_dir_entry = Tkinter.Entry(self.export_dir_frame)
+        self.export_dir_entry = ttk.Entry(self.export_dir_frame)
         self.export_dir_entry.pack({"side": "left", "expand": 1, "fill": "x"})
 
-        self.browse_export_dir_button = Tkinter.Button(self.export_dir_frame, bg=my_panelcolor)
+        self.browse_export_dir_button = ttk.Button(self.export_dir_frame)
         self.browse_export_dir_button["text"] = "browse"
         self.browse_export_dir_button["command"] =  self.set_export_dir
 
         self.browse_export_dir_button.pack({"side": "right", "anchor": "e"})
 
-        self.label_entry1 = Tkinter.Label(self.export_frame, bg=my_panelcolor)
+        self.label_entry1 = ttk.Label(self.export_frame)
         self.label_entry1["text"] = "start date:"
         self.label_entry1.pack({"side": "left"})
 
-        self.export_risk_entry1 = Tkinter.Entry(self.export_frame)
+        self.export_risk_entry1 = ttk.Entry(self.export_frame)
         self.export_risk_entry1.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.export_risk_entry1.pack({"side": "left"})
 
-        self.label_entry2 = Tkinter.Label(self.export_frame, bg=my_panelcolor)
+        self.label_entry2 = ttk.Label(self.export_frame)
         self.label_entry2["text"] = "end date:"
         self.label_entry2.pack({"side": "left"})
 
-        self.export_risk_entry2 = Tkinter.Entry(self.export_frame)
+        self.export_risk_entry2 = ttk.Entry(self.export_frame)
         self.export_risk_entry2.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.export_risk_entry2.pack({"side": "left"})
 
-        self.export_risk_button = Tkinter.Button(self.export_frame, bg=my_panelcolor)
+        self.export_risk_button = ttk.Button(self.export_frame)
         self.export_risk_button["text"] = "export"
         self.export_risk_button["command"] = self.run_export_risk
 
         self.export_risk_button.pack({"side": "right"})
 
-        #self.QUIT = Tkinter.Button(self)
+        #self.QUIT = ttk.Button(self)
         #self.QUIT["text"] = "QUIT"
         #self.QUIT["fg"]   = "red"
         #self.QUIT["command"] =  self.quit
         #self.QUIT.pack({"side": "right"})
+        
+        self.kappa_frame = ttk.Frame(self.postseason_frame, borderwidth=2, relief=Tkinter.RAISED)
+        self.kappa_frame.pack(
+            side=Tkinter.TOP,
+            anchor=Tkinter.W,
+            fill=Tkinter.BOTH,
+            ipadx=5, ipady=5, padx=5, pady=5,
+            )
+        self.label_kappa = ttk.Label(self.kappa_frame)
+        self.label_kappa["text"] = "Kappa analysis:\n"
+        self.label_kappa.pack({"side": "top", "anchor": "w"})
+        
+        self.kappa_window_frame = ttk.Frame(self.kappa_frame)
+        self.kappa_window_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
+        
+        self.kappa_window_start_label = ttk.Label(self.kappa_window_frame)
+        self.kappa_window_start_label["text"] = "window start:"
+        self.kappa_window_start_label.pack({"side": "left"})
+        
+        self.kappa_window_start_entry = ttk.Entry(self.kappa_window_frame)
+        self.kappa_window_start_entry.pack({"side": "left"})
+        
+        self.kappa_window_end_label = ttk.Label(self.kappa_window_frame)
+        self.kappa_window_end_label["text"] = "window end:"
+        self.kappa_window_end_label.pack({"side": "left"})
+        
+        self.kappa_window_end_entry = ttk.Entry(self.kappa_window_frame)
+        self.kappa_window_end_entry.pack({"side": "left"})
+        
+        self.kappa_window_step_label = ttk.Label(self.kappa_window_frame)
+        self.kappa_window_step_label["text"] = "window step:"
+        self.kappa_window_step_label.pack({"side": "left"})
+        
+        self.kappa_window_step_entry = ttk.Entry(self.kappa_window_frame)
+        self.kappa_window_step_entry.pack({"side": "left"})
+        
+        self.kappa_lag_frame = ttk.Frame(self.kappa_frame)
+        self.kappa_lag_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
+        
+        self.kappa_lag_start_label = ttk.Label(self.kappa_lag_frame)
+        self.kappa_lag_start_label["text"] = "lag start:"
+        self.kappa_lag_start_label.pack({"side": "left"})
+        
+        self.kappa_lag_start_entry = ttk.Entry(self.kappa_lag_frame)
+        self.kappa_lag_start_entry.pack({"side": "left"})
+        
+        self.kappa_lag_end_label = ttk.Label(self.kappa_lag_frame)
+        self.kappa_lag_end_label["text"] = "lag end:"
+        self.kappa_lag_end_label.pack({"side": "left"})
+        
+        self.kappa_lag_end_entry = ttk.Entry(self.kappa_lag_frame)
+        self.kappa_lag_end_entry.pack({"side": "left"})
+        
+        self.kappa_lag_step_label = ttk.Label(self.kappa_lag_frame)
+        self.kappa_lag_step_label["text"] = "lag step:"
+        self.kappa_lag_step_label.pack({"side": "left"})
+        
+        self.kappa_lag_step_entry = ttk.Entry(self.kappa_lag_frame)
+        self.kappa_lag_step_entry.pack({"side": "left"})
+        
+        self.kappa_date_frame = ttk.Frame(self.kappa_frame)
+        self.kappa_date_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
+        
+        self.kappa_startdate_label = ttk.Label(self.kappa_date_frame)
+        self.kappa_startdate_label["text"] = "start date:"
+        self.kappa_startdate_label.pack({"side": "left"})
 
-        self.status_label = Tkinter.Label(self, relief=Tkinter.SUNKEN, anchor=Tkinter.W, bg=my_bgcolor)
+        self.kappa_startdate_entry = ttk.Entry(self.kappa_date_frame)
+        self.kappa_startdate_entry.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
+        self.kappa_startdate_entry.pack({"side": "left"})
+
+        self.kappa_enddate_label = ttk.Label(self.kappa_date_frame)
+        self.kappa_enddate_label["text"] = "end date:"
+        self.kappa_enddate_label.pack({"side": "left"})
+
+        self.kappa_enddate_entry = ttk.Entry(self.kappa_date_frame)
+        self.kappa_enddate_entry.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
+        self.kappa_enddate_entry.pack({"side": "left"})
+        
+        self.kappa_button = ttk.Button(self.kappa_frame)
+        self.kappa_button["text"] = "run kappa"
+        self.kappa_button["command"] =  self.run_kappa
+        
+        self.kappa_button.pack({"side": "right"})
+        
+        ##
+        
+        self.n.add(self.daily_frame, text="Daily Tasks")
+        self.n.add(self.postseason_frame, text="Post Season Tasks")
+
+        self.status_label = ttk.Label(self, relief=Tkinter.SUNKEN, anchor=Tkinter.W)
         self.status_label["text"] = "Status: ready"
         self.status_label.pack(fill=Tkinter.X)
 
     def __init__(self, master=None):
-        Tkinter.Frame.__init__(self, master)
-        self.config(bg = my_bgcolor)
+        ttk.Frame.__init__(self, master)
         self.pack()
         self.connect_to_DYCAST()
         self.createWidgets()
