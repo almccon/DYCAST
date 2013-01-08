@@ -1189,10 +1189,12 @@ def kappa(window, lag, startdate, enddate, analysis_area_id=None):
     # end loop
 
     if all_possible_captured == 0:
-        return "no humans found"
+        outstring = "\t".join(map(str, (window, lag, "no humans found")))
+        return outstring
 
     if total_cells_lit == 0:
-        return "no lit cells found"
+        outstring = "\t".join(map(str, (window, lag, "no lit cells found")))
+        return outstring
 
     # Now, what do we do with these numbers?
 

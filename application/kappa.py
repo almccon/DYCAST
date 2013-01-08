@@ -62,18 +62,18 @@ except Exception, inst:
     sys.exit()
 
 if options.windowstart > options.windowend:
-  print "value for windowstart must be less than windowend"
+  print "value for windowstart must be less than or equal to windowend"
   sys.exit()
 
 if options.lagstart > options.lagend:
-  print "value for lagstart must be less than lagend"
+  print "value for lagstart must be less than or equal to lagend"
   sys.exit()
 
-if options.windowstep > 1:
+if options.windowstep < 1:
   print "value for windowstep must be greater than or equal to 1"
   sys.exit()
 
-if options.lagstep > 1:
+if options.lagstep < 1:
   print "value for lagstep must be greater than or equal to 1"
   sys.exit()
 
