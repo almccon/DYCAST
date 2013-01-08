@@ -78,15 +78,17 @@ if options.lagstep < 1:
   sys.exit()
 
 
-print "window\tlag\tsuccess_rate\thit_kappa\tnon_hit_success\tnon_hit_kappa\toverall_success_rate\toverall_kappa\tweighted_kappa\tchi_sq_value\tsignificance_level"
+filehandle = dycast.init_kappa_output()
+
 for window in range(options.windowstart, options.windowend+options.windowstep, options.windowstep):
     for lag in range(options.lagstart, options.lagend+options.lagstep, options.lagstep):
         if options.useanalysisarea:
-            print dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id())
+            dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id(), filehandle)
             #if options.analysisareaid != None:
             #    print dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id())
             #else:
             #    print dycast.kappa(window, lag, startdate, enddate, options.analysisareaid) # I haven't tested this one
         else:
-            print dycast.kappa(window, lag, startdate, enddate, None)
+            dycast.kappa(window, lag, startdate, enddate, None, filehandle)
 
+dycast.close_kappa_output(filehandle)

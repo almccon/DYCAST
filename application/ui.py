@@ -67,6 +67,11 @@ class DYCAST_control(ttk.Frame):
         self.export_dir_entry.delete(0, Tkinter.END)
         self.export_dir_entry.insert(0, self.export_dir)
 
+    def set_kappa_export_dir(self):
+        self.kappa_export_dir = tkFileDialog.askdirectory(parent=self, title="choose export directory")
+        self.kappa_export_dir_entry.delete(0, Tkinter.END)
+        self.kappa_export_dir_entry.insert(0, self.kappa_export_dir)
+
     def get_date_range(self, datestring1, datestring2):
         (y,m,d) = datestring1.split('-')
         startdate = datetime.date(int(y), int(m), int(d))
@@ -189,21 +194,23 @@ class DYCAST_control(ttk.Frame):
                 "value for lag_step must be greater than or equal to 1"
             )
         else:             
+            filehandle = dycast.init_kappa_output(self.kappa_export_dir_entry.get() + os.sep + self.kappa_export_file_entry.get())
             for window in range(window_start, window_end+window_step, window_step):
                 for lag in range(lag_start, lag_end+lag_step, lag_step):
                     self.status_label["text"] = "Status: performing kappa analysis... window %s, lag %s" % (window, lag)
                     self.status_label.update_idletasks()
                     try:
                         if useanalysisarea:
-                            print dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id())
+                            print dycast.kappa(window, lag, startdate, enddate, dycast.get_analysis_area_id(), filehandle)
                         else:
-                            print dycast.kappa(window, lag, startdate, enddate, None)
+                            print dycast.kappa(window, lag, startdate, enddate, None, filehandle)
                     except Exception, inst:
                         tkMessageBox.showwarning(
                             "Kappa",
                             "Could not calculate kappa for window %s, lag %s, startdate %s, enddate %s: %s" % (window, lag, startdate, enddate, inst)
-                        )
-        
+                        )            
+            dycast.close_kappa_output(filehandle)
+            
         self.kappa_button["state"] = Tkinter.NORMAL
         self.status_label["text"] = "Status: ready"
         self.status_label.update_idletasks()
@@ -421,7 +428,33 @@ class DYCAST_control(ttk.Frame):
         self.kappa_enddate_entry = ttk.Entry(self.kappa_date_frame)
         self.kappa_enddate_entry.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.kappa_enddate_entry.pack({"side": "left"})
+       
+        self.kappa_export_dir_frame = ttk.Frame(self.kappa_frame)
+        self.kappa_export_dir_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
         
+        self.kappa_export_dir_label = ttk.Label(self.kappa_export_dir_frame)
+        self.kappa_export_dir_label["text"] = "Kappa export directory:"
+        self.kappa_export_dir_label.pack({"side": "left"})
+        
+        self.kappa_export_dir_entry = ttk.Entry(self.kappa_export_dir_frame)
+        self.kappa_export_dir_entry.pack({"side": "left", "expand": 1, "fill": "x"})
+        
+        self.kappa_export_dir_button = ttk.Button(self.kappa_export_dir_frame)
+        self.kappa_export_dir_button["text"] = "browse"
+        self.kappa_export_dir_button["command"] = self.set_kappa_export_dir
+        self.kappa_export_dir_button.pack({"side": "right", "anchor": "e"})
+        
+        self.kappa_export_file_frame = ttk.Frame(self.kappa_frame)
+        self.kappa_export_file_frame.pack({"side": "top", "anchor": "w", "fill": "both"})
+        
+        self.kappa_export_file_label = ttk.Label(self.kappa_export_file_frame)
+        self.kappa_export_dir_label["text"] = "Kappa export filename:"
+        self.kappa_export_dir_label.pack({"side": "left"})
+        
+        self.kappa_export_file_entry = ttk.Entry(self.kappa_export_file_frame)
+        self.kappa_export_file_entry.insert(0, "kappa.tsv")
+        self.kappa_export_file_entry.pack({"side": "left"})
+         
         self.kappa_button = ttk.Button(self.kappa_frame)
         self.kappa_button["text"] = "run kappa"
         self.kappa_button["command"] =  self.run_kappa

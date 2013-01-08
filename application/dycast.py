@@ -888,7 +888,7 @@ def text_export(window=None, file_prefix=None, countyname=None):
     if file_prefix:
         localfile = open(file_prefix + filename_string + ".txt", 'w')
     else:
-        print filename_string
+        print filename_string # TODO: shouldn't this open a filehandle, too?
     print >> localfile, "Number_cases\tDays_lit\tCumulative_Cases\tPercent"
     # TODO: This loop should not be duplicated with the one below 
     # TODO: I am going through these twice so I know the final cumulative number
@@ -1019,7 +1019,23 @@ def get_analysis_area_id():
     else:
       return None
 
-def kappa(window, lag, startdate, enddate, analysis_area_id=None):
+def init_kappa_output(filename=None):
+    # Print the first line of the Kappa output, a tsv file suitable for Excel
+    # If no filename is given, print to stdout
+    localfile = None
+    if filename:
+        localfile = open(filename, 'w')
+        print >> localfile, "window\tlag\tsuccess_rate\thit_kappa\tnon_hit_success\tnon_hit_kappa\toverall_success_rate\toverall_kappa\tweighted_kappa\tchi_sq_value\tsignificance_level"
+    else:
+        print "window\tlag\tsuccess_rate\thit_kappa\tnon_hit_success\tnon_hit_kappa\toverall_success_rate\toverall_kappa\tweighted_kappa\tchi_sq_value\tsignificance_level"
+    
+    return localfile
+
+def close_kappa_output(localfile=None):
+    if localfile:
+        localfile.close
+    
+def kappa(window, lag, startdate, enddate, analysis_area_id=None, localfile=None):
 
     logging.info("running kappa: window %s lag %s", window, lag)
     # Should there be a check if there is continuous risk days generated?
@@ -1065,7 +1081,6 @@ def kappa(window, lag, startdate, enddate, analysis_area_id=None):
                 cur.execute("DROP TABLE \"" + effects_poly_tiles_table_analysis + "\"")
                 cur.execute(querystring, (startdate, enddate))
             else:
-                print "okay"
                 logging.error("can't select create temp analysis table")
                 logging.error(inst)
                 sys.exit()
@@ -1190,11 +1205,17 @@ def kappa(window, lag, startdate, enddate, analysis_area_id=None):
 
     if all_possible_captured == 0:
         outstring = "\t".join(map(str, (window, lag, "no humans found")))
-        return outstring
+        if localfile:
+            print >> localfile, outstring
+        else:
+            print outstring
 
     if total_cells_lit == 0:
         outstring = "\t".join(map(str, (window, lag, "no lit cells found")))
-        return outstring
+        if localfile:
+            print >> localfile, outstring
+        else:
+            print outstring
 
     # Now, what do we do with these numbers?
 
@@ -1252,7 +1273,10 @@ def kappa(window, lag, startdate, enddate, analysis_area_id=None):
     significance_level = 0
     #outstring = str(window) + "\t" + str(lag) + "\t" + str(weighted_kappa)
     outstring = "\t".join(map(str, (window, lag, hit_success_rate, the_hit_kappa, non_hit_success_rate, the_non_hit_kappa, overall_success, kappa_value, weighted_kappa, chi_sq_value, significance_level)))
-    return outstring
+    if localfile:
+        print >> localfile, outstring
+    else:
+        print outstring
 
     # The following notes were made by Alan McConchie and Ylli Kellici 
     # in 2005, trying to understand the original Kappa code written by 
@@ -1351,6 +1375,8 @@ def kappa(window, lag, startdate, enddate, analysis_area_id=None):
 # non-human cells, and it is considered more important to
 # capture the humans than to avoid false positives.  So, the
 # weighted kappa is largely determined by the hit kappa. 
+
+    return localfile
 
 
 
