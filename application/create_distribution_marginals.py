@@ -39,3 +39,5 @@ if options.startnumber > options.endnumber:
   sys.exit()
 
 dycast.create_dist_margs(options.closespace, options.closetime, options.spatialdomain, options.temporaldomain, options.startnumber, options.endnumber)
+
+dycast.calculate_probabilities()
