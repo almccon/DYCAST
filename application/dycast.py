@@ -4,12 +4,14 @@ from __future__ import division
 import sys
 import os
 import shutil
-#import datetime
+import datetime
 from datetime import timedelta
 import time
 import fileinput
 import ConfigParser
 import logging
+import math
+from random import random
 from ftplib import FTP
 
 if sys.platform == 'win32':
@@ -71,11 +73,7 @@ effects_poly_table = "x"
 effects_poly_tiles_table = "x"
 all_risk_table = "x"
 analysis_area_table = "x"
-
-# dist_margs means "distribution marginals" and is the result of the
-# monte carlo simulations.  See Theophilides et al. for more information
-#def create_dist_margs():
-#def load_prepared_dist_margs():
+dist_margs_table = "x"
 
 #def create_analysis_grid():
 #def load_prepared_analysis_grid():
@@ -105,6 +103,7 @@ def read_config(filename):
     global effects_poly_tiles_table
     global all_risk_table
     global analysis_area_table
+    global dist_margs_table
     global sd
     global td
     global cs
@@ -142,6 +141,7 @@ def read_config(filename):
     effects_poly_tiles_table = config.get("database", "effects_poly_tiles_table")
     all_risk_table = config.get("database", "all_risk_table")
     analysis_area_table = config.get("database", "analysis_area_table")
+    dist_margs_table = config.get("database", "distribution_marginals_table")
 
     sd = float(config.get("dycast", "spatial_domain")) * miles_to_metres
     cs = float(config.get("dycast", "close_in_space")) * miles_to_metres
@@ -672,6 +672,10 @@ def print_bird_list(bird_tab, tile_id):
         print row[0]
 
 def create_effects_poly_bird_table(bird_tab, tile_id):
+
+    # Question: isn't this table also getting created in postgres_init.sql?
+    # Will this function create an incompatible version of that table?
+
     tablename = "temp_table_bird_selection" 
     #tablename = bird_tab + "_" + tile_id
     # I don't think this can be a temp table, or else I'd have to use "EXECUTE"
@@ -687,11 +691,15 @@ def create_effects_poly_bird_table(bird_tab, tile_id):
     conn.commit()
     return tablename 
 
-def cst_cs_ct_wrapper():
+def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
+
+    # A wrapper to a plpgsql function that returns the close in space and close in time
+    # results for the birds loaded into the temp_table_bird_selection table
+
     querystring = "SELECT * FROM cst_cs_ct(%s, %s)"
     try:
         #logging.info("selecting SELECT * FROM cst_cs_ct(%s, %s)", cs, ct)
-        cur.execute(querystring, (cs, ct))
+        cur.execute(querystring, (local_cs, local_ct))
     except Exception, inst:
         conn.rollback()
         logging.error("can't select cst_cs_ct function")
@@ -758,6 +766,256 @@ def daily_risk(riskdate, startpoly=None, endpoly=None):
      
     #logging.info("Finished daily_risk for %s: done %s tiles, time elapsed: %s seconds", riskdate, inc, time.time() - st)
     logging.info("Finished daily_risk for %s: done %s tiles", riskdate, inc)
+
+
+##########################################################################
+##### functions for initializing the probability tables (monte carlo simulation):
+##########################################################################
+
+def calculate_probabilities():
+  # This method calculates the probability and cumulative
+  # probability for each record in the distribution values table
+  # if they are unset. To calculate everything in the table it
+  # must be called from a loop over all records in the table.  It
+  # is now called from a loop after the end of creating the distributions.
+  
+  querystring = "SELECT * FROM \"" + dist_margs_table + "\""
+  try:
+    cur.execute(querystring)
+  except Exception, inst:
+    logging.error("cannot select from %s", dist_margs_table)
+    logging.error(inst)
+    return 0
+  
+  rows = cur.fetchall()
+  
+  for row in rows:
+    [number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time] = row
+    #if cumulative_probability is None or cumulative_probability < 0:
+    if cumulative_probability > 0:
+      print "cumulative_probability already exists. Overwriting..."
+        
+    if probability is None or probability < 1:
+      print "found an empty probability. This should not happen"
+      probability = 1
+
+    counter = 0
+
+    querystring = "SELECT * FROM \"" + dist_margs_table + "\" WHERE number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
+    try:
+      cur.execute(querystring, (number_of_birds, close_pairs, close_space, close_time))
+    except Exception, inst:
+      logging.error("cannot make sub-selection from %s", dist_margs_table)
+      logging.error(inst)
+      return 0
+
+    newrows = cur.fetchall()
+    for newrow in newrows:
+      # check for empty percentage
+      [number_of_birds1, close_pairs1, probability1, cumulative_probability1, close_space1, close_time1] = newrow
+      
+      counter += probability1 
+
+    # end newrows loop
+    
+    cumulative_probability = counter/5000
+    
+    querystring = "UPDATE \"" + dist_margs_table + "\" SET cumulative_probability = %s WHERE number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
+    try:
+      cur.execute(querystring, (cumulative_probability, number_of_birds, close_pairs, close_space, close_time))
+    except Exception, inst:
+      conn.rollback()
+      logging.error("can't update cumulative_probability")
+      logging.error(inst)
+    conn.commit()
+    
+    print "cumulative_probability: %s" % cumulative_probability    
+
+  # end outer loop
+
+def get_param_record_id(close_space, close_time, spatial_domain, temporal_domain):
+
+  # Right now this is faked
+
+  return 12345678 # later this will be a real id
+
+# dist_margs means "distribution marginals" and is the result of the
+# monte carlo simulations.  See Theophilides et al. for more information
+def create_dist_margs(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain, start_number=15, end_number=100):
+
+  param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
+  # If record doesn't exist, create a new one... in any case, return the id.
+
+  # TODO: This should prompt before deleting!
+
+  querystring = "DELETE FROM " + dist_margs_table
+  try:
+    cur.execute(querystring)
+  except Exception, inst:
+    conn.rollback()
+    logging.warning("couldn't delete dist_margs")
+    logging.warning(inst)
+  conn.commit()
+
+
+  st = time.time()
+
+  for a_bird_number in range(start_number, end_number):
+
+    print "a_bird_number", a_bird_number
+    lt = time.time()
+
+    # Run the monte carlo 5000 times
+    for i in range(1, 5000):
+
+      if not i % 1000:
+        t = time.time()
+        #logging.debug("%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s", a_bird_number, i, t - lt, t - st)
+        print "%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s" % (a_bird_number, i, t - lt, t - st)
+  
+      # wipe temp table (do I already have a function for this?)
+
+      querystring = "DELETE FROM temp_table_bird_selection"
+      try:
+        cur.execute(querystring)
+      except Exception, inst:
+        conn.rollback()
+        logging.warning("couldn't delete temp birds")
+        logging.warning(inst)
+      conn.commit()
+
+      # Pick an arbitrary point around which to create simulated birds
+      # This x and y are values in the current coordinate system.
+      center_x = 0
+      center_y = 0
+
+      species = "simulated_bird"
+
+      # Randomly scatter the birds
+      # Should this range start with 0 or 1? 
+      for a_random_bird in range(1, a_bird_number):
+        a_distance = random()*local_spatial_domain
+        an_angle = random()*2*math.pi
+        point_x = center_x + math.cos(an_angle)*a_distance
+        point_y = center_y + math.sin(an_angle)*a_distance
+
+        a_time = datetime.date.today() - timedelta(random()*local_temporal_domain)
+        
+        #bird_list.add((a_point, a_time)
+        #insert_simulated_bird(a_point, a_time)
+
+        querystring = "INSERT INTO temp_table_bird_selection VALUES (%s, %s, %s, GeometryFromText('POINT(" + str(point_y) + " " + str(point_x) + ")',54003))"
+        try:
+            cur.execute(querystring, (a_random_bird, a_time, species))
+        except Exception, inst:
+            conn.rollback()
+            if str(inst).startswith("duplicate key"): 
+                logging.debug("couldn't insert duplicate dead bird key %s, skipping...", bird_id)
+                next
+            else:
+                logging.warning("couldn't insert dead bird record")
+                logging.warning(inst)
+        conn.commit()
+
+      # pair the random birds
+      close_space_time_p = 0
+      close_space_p = 0
+      close_time_p = 0
+      
+      #for db_1 in range(1, len(bird_list)-1):
+      #  dead_bird_1 = bird_list[db_1]
+      #  for db_2 in range (db_1+1, len(bird_list)):
+      #    dead_bird_2 = bird_list[db_2]
+      #    print "testing", dead_bird_1, "against", dead_bird_2
+      #    space_distance = get_bird_distance(dead_bird_1, dead_bird_2)
+      #    time_distance = abs(dead_bird_1[2] - dead_bird_2[2])
+      #    if space_distance < local_close_space and time_distance < local_close_time:
+      #      close_space_time_p += 1
+      #    if space_distance < local_close_space:
+      #      close_space_p += 1
+      #    if time_distance < local_close_time:
+      #      close_time_p += 1
+
+      results = cst_cs_ct_wrapper(local_close_space, local_close_time)
+      close_space_time_p = results[0][0]
+      close_space_p = results[1][0]
+      close_time_p = results[2][0]
+
+      # See if we've already done this combination and arrived at the
+      # same number of pairs. Note that there should be at most one record in the db 
+
+      querystring = "SELECT probability FROM \"" + dist_margs_table + "\" WHERE number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s" 
+      try:
+        cur.execute(querystring, (a_bird_number, close_space_time_p, close_space_p, close_time_p))
+      except Exception, inst:
+        conn.rollback()
+        logging.error("can't select bird simulation result")
+        logging.error(inst)
+        sys.exit()
+      rows = cur.fetchall()
+
+      if len(rows) == 0: 
+
+        # If we haven't already done this combination, store a new record
+
+        probability = 1
+
+        #print "inserting into", dist_margs_table
+
+        querystring = "INSERT INTO \"" + dist_margs_table + "\" (probability, number_of_birds, close_pairs, close_space, close_time) VALUES (%s, %s, %s, %s, %s)" 
+        try:
+          cur.execute(querystring, (probability, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+        except Exception, inst:
+          conn.rollback()
+          logging.error("can't update bird simulation result")
+          logging.error(inst)
+          sys.exit()
+        conn.commit()
+
+      elif len(rows) == 1:
+
+    	  # If we have done it before (assume there's only one element)
+				# then we don't create a new record, but instead add
+				# 1 to the percentage.  So every time this combination of
+				# inputs produces this number of pairs, we increase the tally.
+				# (The percentage is not really a percentage (1 out of 100), 
+				# it is really 1 out of 5000)
+
+        probability = rows[0][0]
+
+        if probability == None or probability < 1:
+          print "found an empty probability. Somehow this was created wrong?"
+          probability = 2
+       
+        else: 
+          probability += 1
+
+        #print "updating", dist_margs_table
+
+        querystring = "UPDATE \"" + dist_margs_table + "\" SET probability = %s WHERE number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s"
+        try:
+          cur.execute(querystring, (probability, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+        except Exception, inst:
+          conn.rollback()
+          logging.error("can't update bird simulation result")
+          logging.error(inst)
+          sys.exit()
+        conn.commit()
+
+      else:
+        logging.error("query returned more than 1 row. Not sure how to proceed. Exiting.")
+        sys.exit()
+
+      
+  
+
+
+
+#def create_multiple_dist_margs():
+#def load_prepared_dist_margs():
+#def export_prepared_dist_margs():
+
+
 
 ##########################################################################
 ##### functions for post season analysis:
