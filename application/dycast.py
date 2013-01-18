@@ -823,26 +823,35 @@ def daily_risk(riskdate, startpoly=None, endpoly=None):
 ##### functions for initializing the probability tables (monte carlo simulation):
 ##########################################################################
 
-def calculate_probabilities():
+def calculate_probabilities(param_record_id=None):
   """This method calculates the probability and cumulative
   probability for each record in the distribution values table
   if they are unset. To calculate everything in the table it
   must be called from a loop over all records in the table.  It
   is now called from a loop after the end of creating the distributions.
   """
-  
-  querystring = "SELECT * FROM \"" + dist_margs_table + "\""
-  try:
-    cur.execute(querystring)
-  except Exception, inst:
-    logging.error("cannot select from %s", dist_margs_table)
-    logging.error(inst)
-    return 0
+ 
+  if param_record_id: 
+    querystring = "SELECT * FROM \"" + dist_margs_table + "\" WHERE param_id = %s"
+    try:
+      cur.execute(querystring, (param_record_id))
+    except Exception, inst:
+      logging.error("cannot select from %s", dist_margs_table)
+      logging.error(inst)
+      return 0
+  else:
+    querystring = "SELECT * FROM \"" + dist_margs_table + "\""
+    try:
+      cur.execute(querystring)
+    except Exception, inst:
+      logging.error("cannot select from %s", dist_margs_table)
+      logging.error(inst)
+      return 0
   
   rows = cur.fetchall()
   
   for row in rows:
-    [number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time] = row
+    [param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time] = row
     #if cumulative_probability is None or cumulative_probability < 0:
     if cumulative_probability > 0:
       logging.warning("cumulative_probability already exists. Overwriting...")
@@ -853,9 +862,9 @@ def calculate_probabilities():
 
     counter = 0
 
-    querystring = "SELECT * FROM \"" + dist_margs_table + "\" WHERE number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
+    querystring = "SELECT * FROM \"" + dist_margs_table + "\" WHERE param_id = %s and number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
     try:
-      cur.execute(querystring, (number_of_birds, close_pairs, close_space, close_time))
+      cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, close_space, close_time))
     except Exception, inst:
       logging.error("cannot make sub-selection from %s", dist_margs_table)
       logging.error(inst)
@@ -863,8 +872,8 @@ def calculate_probabilities():
 
     newrows = cur.fetchall()
     for newrow in newrows:
-      # check for empty percentage
-      [number_of_birds1, close_pairs1, probability1, cumulative_probability1, close_space1, close_time1] = newrow
+      # TODO: check for empty percentage
+      [param_record_id1, number_of_birds1, close_pairs1, probability1, cumulative_probability1, close_space1, close_time1] = newrow
       
       counter += probability1 
 
@@ -872,9 +881,9 @@ def calculate_probabilities():
     
     cumulative_probability = counter/5000
     
-    querystring = "UPDATE \"" + dist_margs_table + "\" SET cumulative_probability = %s WHERE number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
+    querystring = "UPDATE \"" + dist_margs_table + "\" SET cumulative_probability = %s WHERE param_id = %s and number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
     try:
-      cur.execute(querystring, (cumulative_probability, number_of_birds, close_pairs, close_space, close_time))
+      cur.execute(querystring, (cumulative_probability, param_record_id, number_of_birds, close_pairs, close_space, close_time))
     except Exception, inst:
       conn.rollback()
       logging.error("can't update cumulative_probability")
@@ -885,14 +894,15 @@ def calculate_probabilities():
 
   # end outer loop
 
-def get_param_record_id(close_space, close_time, spatial_domain, temporal_domain):
+def get_param_record_id(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param):
   """Return the id for this particular combination of parameters.
   Right now this is faked
   """
+  # If record doesn't exist, create a new one... in any case, return the id.
 
   return 12345678 # later this will be a real id
 
-def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, start_number=15, end_number=100):
+def create_dist_margs(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param, start_number=15, end_number=100):
   """dist_margs means "distribution marginals" and is the result of the
   monte carlo simulations.  See Theophilides et al. for more information.
   
@@ -901,33 +911,31 @@ def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, 
   close_time and temporal_domain are in units of days.
   """
   
-  local_close_space = float(close_space) * miles_to_metres
-  local_close_time = close_time
-  local_spatial_domain = float(spatial_domain) * miles_to_metres
-  local_temporal_domain = temporal_domain
+  local_close_space = float(close_space_param) * miles_to_metres
+  local_close_time = close_time_param
+  local_spatial_domain = float(spatial_domain_param) * miles_to_metres
+  local_temporal_domain = temporal_domain_param
   
 
   param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
-  # If record doesn't exist, create a new one... in any case, return the id.
 
   # TODO: This should prompt before deleting!
-
-  querystring = "DELETE FROM " + dist_margs_table
+  
+  logging.warning("Deleting monte carlo simulations for parameter_id %s", param_record_id)
+  querystring = "DELETE FROM \"" + dist_margs_table + "\" WHERE param_id = %s"
   try:
-    cur.execute(querystring)
+    cur.execute(querystring, (param_record_id,))
   except Exception, inst:
     conn.rollback()
     logging.warning("couldn't delete dist_margs")
     logging.warning(inst)
   conn.commit()
 
-
-  st = time.time()
+  st = time.time()  # start time
 
   for a_bird_number in range(start_number, end_number+1):
 
-    # print "a_bird_number", a_bird_number
-    lt = time.time()
+    lt = time.time()  # loop time
 
     # Run the monte carlo 5000 times
     for i in range(1, 5000):
@@ -1008,9 +1016,9 @@ def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, 
       # See if we've already done this combination and arrived at the
       # same number of pairs. Note that there should be at most one record in the db 
 
-      querystring = "SELECT probability FROM \"" + dist_margs_table + "\" WHERE number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s" 
+      querystring = "SELECT probability FROM \"" + dist_margs_table + "\" WHERE param_id = %s and number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s" 
       try:
-        cur.execute(querystring, (a_bird_number, close_space_time_p, close_space_p, close_time_p))
+        cur.execute(querystring, (param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
       except Exception, inst:
         conn.rollback()
         logging.error("can't select bird simulation result")
@@ -1026,9 +1034,9 @@ def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, 
 
         #print "inserting into", dist_margs_table
 
-        querystring = "INSERT INTO \"" + dist_margs_table + "\" (probability, number_of_birds, close_pairs, close_space, close_time) VALUES (%s, %s, %s, %s, %s)" 
+        querystring = "INSERT INTO \"" + dist_margs_table + "\" (probability, param_id, number_of_birds, close_pairs, close_space, close_time) VALUES (%s, %s, %s, %s, %s, %s)" 
         try:
-          cur.execute(querystring, (probability, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
         except Exception, inst:
           conn.rollback()
           logging.error("can't update bird simulation result")
@@ -1056,9 +1064,9 @@ def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, 
 
         #print "updating", dist_margs_table
 
-        querystring = "UPDATE \"" + dist_margs_table + "\" SET probability = %s WHERE number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s"
+        querystring = "UPDATE \"" + dist_margs_table + "\" SET probability = %s WHERE param_id = %s and number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s"
         try:
-          cur.execute(querystring, (probability, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
         except Exception, inst:
           conn.rollback()
           logging.error("can't update bird simulation result")
@@ -1070,16 +1078,9 @@ def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, 
         logging.error("query returned more than 1 row. Not sure how to proceed. Exiting.")
         sys.exit()
 
-      
-  
-
-
-
 #def create_multiple_dist_margs():
 #def load_prepared_dist_margs():
 #def export_prepared_dist_margs():
-
-
 
 ##########################################################################
 ##### functions for post season analysis:

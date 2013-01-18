@@ -142,6 +142,7 @@ CREATE TABLE all_risk (
 );
 
 CREATE TABLE dist_margs (
+    param_id integer,
     number_of_birds integer,
     close_pairs integer,
     probability float,
@@ -150,6 +151,7 @@ CREATE TABLE dist_margs (
     close_time integer
 );
 
+CREATE INDEX dist_margs_paridx ON dist_margs (param_id);
 CREATE INDEX dist_margs_numidx ON dist_margs (number_of_birds);
 CREATE INDEX dist_margs_cpidx ON dist_margs (close_pairs);
 CREATE INDEX dist_margs_csidx ON dist_margs (close_space);
@@ -191,24 +193,24 @@ CREATE OR REPLACE FUNCTION
     LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION
-    nmcm(num_birds integer, cp integer, cs integer, ct integer)
+    nmcm(parameters_id integer, num_birds integer, cp integer, cs integer, ct integer)
     RETURNS float AS 
     $$
     DECLARE
         result_prob float;
         result_ct integer;
     BEGIN
-    SELECT cumulative_probability INTO result_prob FROM dist_margs WHERE number_of_birds = num_birds and close_pairs = cp and close_space = cs and close_time = ct;
+    SELECT cumulative_probability INTO result_prob FROM dist_margs WHERE param_id = parameters_id and number_of_birds = num_birds and close_pairs = cp and close_space = cs and close_time = ct;
     IF FOUND THEN
         RETURN result_prob;
     ELSE
         -- First find out if there are any, before going to the trouble of sorting:
-        SELECT close_time INTO result_ct FROM dist_margs WHERE number_of_birds = num_birds and close_pairs >= cp and close_time >= ct;
+        SELECT close_time INTO result_ct FROM dist_margs WHERE param_id = parameters_id and number_of_birds = num_birds and close_pairs >= cp and close_time >= ct;
         IF FOUND THEN
             -- Now actually find out which close_time to use:
-            SELECT close_time INTO result_ct FROM dist_margs WHERE number_of_birds = num_birds and close_pairs >= cp and close_time >= ct ORDER BY close_time LIMIT 1;
+            SELECT close_time INTO result_ct FROM dist_margs WHERE param_id = parameters_id and number_of_birds = num_birds and close_pairs >= cp and close_time >= ct ORDER BY close_time LIMIT 1;
             -- Then use that close_time in this query:
-            SELECT cumulative_probability INTO result_prob FROM dist_margs WHERE number_of_birds = num_birds and close_pairs >= cp and close_time = result_ct and close_space >= cs ORDER BY close_space LIMIT 1;
+            SELECT cumulative_probability INTO result_prob FROM dist_margs WHERE param_id = parameters_id and number_of_birds = num_birds and close_pairs >= cp and close_time = result_ct and close_space >= cs ORDER BY close_space LIMIT 1;
             IF FOUND THEN
                 RETURN result_prob;
             ELSE
