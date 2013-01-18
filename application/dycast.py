@@ -79,9 +79,12 @@ dist_margs_table = "x"
 #def load_prepared_analysis_grid():
 
 def read_config(filename):
-    # All dycast objects must be initialized from a config file, therefore,
-    # all dycast applications must include the name of a config file, or they
-    # must use the default, which is dycast.config in the current directory
+    """Read the configuration file and set global variables.
+    
+    All dycast objects must be initialized from a config file, therefore,
+    all dycast applications must include the name of a config file, or they
+    must use the default, which is dycast.config in the current directory
+    """
 
     global dbname
     global user
@@ -167,7 +170,12 @@ def error(message):
     logging.error(message)
 
 def create_db(dbname):
-    # Currently this doesn't work
+    """Create the database. 
+    
+    Currently this doesn't work, and the database is created by the 
+    postgres_init.sql initialization script.
+    """
+    
     try:
         #conn = psycopg2.connect("dbname='template1' user='" + user + "' host='" + host + "'")
         conn = psycopg2.connect("user='" + user + "' host='" + host + "'")
@@ -195,6 +203,7 @@ def create_db(dbname):
     
 
 def init_db():
+    """Initialize the database connection."""
     global cur, conn
     try:
         conn = psycopg2.connect(dsn)
@@ -209,6 +218,8 @@ def init_db():
 ##########################################################################
 
 def load_bird(line):
+    """Load a single bird entry (usually from a text file)."""
+    
     try:
         (bird_id, report_date_string, lon, lat, species) = line.split("\t")
     except ValueError:
@@ -236,6 +247,7 @@ def load_bird(line):
     return bird_id
 
 def load_human_case(line):
+    """Load a single human case (usually from a text file)."""
     try:
         (human_case_id, onset_date_string, lon, lat) = line.split("\t")
     except ValueError:
@@ -289,12 +301,13 @@ def load_human_case(line):
 ##########################################################################
 
 def export_risk(riskdate, format = "dbf", path = None):
+    """Export the risk values for a given date. Saved by default as dbf."""
+    
     if path == None:
         path = risk_file_dir + "/tmp/"
         using_tmp = True
     else:
         using_tmp = False
-
 
     # riskdate is a date object, not a string
     try:
@@ -338,10 +351,14 @@ def export_risk(riskdate, format = "dbf", path = None):
         
 
 def init_txt_out(riskdate, path):
-    # Currently just sprints to stdout.  Fix this later if needed
+    """Print first line of risk output. 
+    Currently just sprints to stdout.  Fix this later if needed.
+    """
     print "ID\tBuf\tcs\tct\tnum\tpairs\texp\tT_Only\tS_Only\tnmcm"
 
 def init_dbf_out(riskdate, path = None):
+    """Initialize dbf filehandle and print first line of risk output."""
+    
     if path == None:
         path = "."
     global dbfn
@@ -362,9 +379,11 @@ def init_dbf_out(riskdate, path = None):
     return dbfn
 
 def txt_print(id, num_birds, close_pairs, close_space, close_time, nmcm):
+    """Print one line of risk to stdout."""
     print "%s\t1.5\t0.2500\t3\t%s\t%s\t?.???\t%s\t%s\t%s" % (id, num_birds, close_pairs, close_time, close_space, nmcm)
     
 def dbf_print(id, nmcm):
+    """Print one line of risk to dbf."""
     global dbfn
     global riskdate_tuple
     rec = dbfn.newRecord()
@@ -379,10 +398,13 @@ def dbf_print(id, nmcm):
     rec.store()
    
 def txt_close():
-    # Currently just sprints to stdout.  Fix this later if needed
+    """Print last line of text output.
+    Currently just sprints to stdout.  Fix this later if needed.
+    """
     print "done" 
 
 def dbf_close():
+    """Close dbf filehandle."""
     global dbfn
     dbfn.close()
 
@@ -410,6 +432,7 @@ def backup_birds():
     shutil.copyfile(dead_birds_dir + dead_birds_filename, dead_birds_dir + new_file)
 
 def download_birds():
+    """Download the latest bird data from an FTP site and write to local file."""
     localfile = open(dead_birds_dir + os.sep + dead_birds_filename, 'w')
 
     try:
@@ -429,6 +452,7 @@ def download_birds():
     localfile.close()
 
 def load_bird_file(filename = None):
+    """Load a file of dead birds into the database."""
     if filename == None:
         filename = dead_birds_dir + os.sep + dead_birds_filename
     lines_read = 0
@@ -455,7 +479,8 @@ def load_bird_file(filename = None):
 
  
 def load_human_file(filename):
-    # Need to catch exception from missing files, also above in load_bird
+    """Load a file of human cases into the database.""" 
+    # TODO: Need to catch exception from missing files, also above in load_bird
     lines_read = 0
     lines_processed = 0
     lines_loaded = 0
@@ -480,13 +505,15 @@ def load_human_file(filename):
 
  
 def load_risk(filename):
+    """Load a risk file into the database.
 
-    # for loading the system with risk already generated (for example, in 
-    # a previous year or on a different computer)
+    This is for populating the system with risk already generated 
+    (for example, in a previous year or on a different computer).
 
-    # File must be dbf including fields: ID, DISP_VAL, DATE
-    # Optional fields: COUNTY, RISK
-    # Later: make DATE optional if it is provided in filename
+    File must be dbf including fields: ID, DISP_VAL, DATE
+    Optional fields: COUNTY, RISK
+    """
+    # TODO later: make DATE optional if it is provided in filename
 
     lines_read = 0
     lines_processed = 0
@@ -536,6 +563,9 @@ def load_risk(filename):
     return lines_read, lines_processed, lines_loaded, lines_skipped
 
 def upload_new_risk(outboxpath = None):
+    """Upload exported risk files to an FTP site and move from new to cur folder.
+    Currently this is a wrapper around upload_risk(), which has not been tested.
+    """
     if outboxpath == None:
         outboxpath = risk_file_dir
     newdir = outboxpath + "/new/"
@@ -546,9 +576,11 @@ def upload_new_risk(outboxpath = None):
             outbox_new_to_cur(outboxpath, file)
 
 def upload_risk(path, filename):
+    """Upload a risk file to an FTP site.
     ######
     ###### WARNING: Not tested
     ######
+    """
     
     # Fix this: allow uploading multiple files:
     # Also check if this should use outboxpath
@@ -563,6 +595,7 @@ def upload_risk(path, filename):
 ##########################################################################
 
 def create_temp_bird_table(riskdate, days_prev):
+    """Create a table that only includes birds within a given timeframe."""
     enddate = riskdate
     startdate = riskdate - timedelta(days=(days_prev))
     tablename = "dead_birds_" + startdate.strftime("%Y-%m-%d") + "_to_" + enddate.strftime("%Y-%m-%d")
@@ -582,6 +615,7 @@ def create_temp_bird_table(riskdate, days_prev):
     return tablename
 
 def create_daily_risk_table(riskdate):
+    """Create a table to store the risk results for this day's analysis."""
     tablename = "risk" + riskdate.strftime("%Y-%m-%d") 
     querystring = "CREATE TABLE \"" + tablename + "\" (LIKE \"risk_table_parent\" INCLUDING CONSTRAINTS)"
     # the foreign key constraints are not being copied for some reason.
@@ -600,8 +634,8 @@ def create_daily_risk_table(riskdate):
     conn.commit()
     return tablename
 
-
 def get_ids(startpoly=None, endpoly=None):
+    """Get the list of effects_poly ids to iterate through."""
     try:
         if endpoly != None and startpoly != None:
             querystring = "SELECT tile_id from " + effects_poly_table + " where tile_id >= %s and tile_id <= %s"
@@ -620,6 +654,7 @@ def get_ids(startpoly=None, endpoly=None):
     return rows
 
 def get_county_id(tile_id):
+    """Given the id of an effects_poly, return the county it falls within."""
     try:
         #TODO: This poly table needs to be the one with counties in it
         # I'm not sure why it works adding the tile_id as a string, but
@@ -636,6 +671,7 @@ def get_county_id(tile_id):
     return cur.fetchone()[0]
 
 def get_county_id_from_county_name(county_name):
+    """Given the name of a county, return its id."""
     try:
         querystring = "SELECT county_id FROM county_codes where name = \'" + str(county_name) + "\'"
         cur.execute(querystring)
@@ -648,6 +684,7 @@ def get_county_id_from_county_name(county_name):
     return cur.fetchone()[0]
 
 def check_bird_count(bird_tab, tile_id):
+    """Return the number of birds within the spatial domain of the tile center.""" 
     querystring = "SELECT count(*) from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
         cur.execute(querystring, (tile_id, sd))
@@ -660,6 +697,7 @@ def check_bird_count(bird_tab, tile_id):
     return new_row[0]
 
 def print_bird_list(bird_tab, tile_id):
+    """Print the list of nearby birds. Prints to stdout (for debugging)"""
     querystring = "SELECT bird_id from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
         cur.execute(querystring, (tile_id, sd))
@@ -672,6 +710,11 @@ def print_bird_list(bird_tab, tile_id):
         print row[0]
 
 def create_effects_poly_bird_table(bird_tab, tile_id):
+    """Create a temp table including only birds within the spatial domain.
+    
+    Use this function to query the temp table already created (that only
+    includes birds within the temporal domain).
+    """
 
     # Question: isn't this table also getting created in postgres_init.sql?
     # Will this function create an incompatible version of that table?
@@ -692,9 +735,10 @@ def create_effects_poly_bird_table(bird_tab, tile_id):
     return tablename 
 
 def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
-
-    # A wrapper to a plpgsql function that returns the close in space and close in time
-    # results for the birds loaded into the temp_table_bird_selection table
+    """A wrapper to a plpgsql function that returns the close in space 
+    and close in time results for the birds loaded into the 
+    temp_table_bird_selection table.
+    """
 
     querystring = "SELECT * FROM cst_cs_ct(%s, %s)"
     try:
@@ -708,6 +752,11 @@ def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
     return cur.fetchall()
   
 def nmcm_wrapper(num_birds, close_pairs, close_space, close_time):
+    """A wrapper to the plpgsql function that returns the monte carlo
+    probabililty (the New Monte Carlo Marginals, hence "nmcm") for the
+    given parameters.
+    """
+    
     querystring = "SELECT * FROM nmcm(%s, %s, %s, %s)"
     try:
         cur.execute(querystring, (num_birds, close_pairs, close_space, close_time))
@@ -719,6 +768,7 @@ def nmcm_wrapper(num_birds, close_pairs, close_space, close_time):
     return cur.fetchall()
   
 def insert_result(riskdate, tile_id, num_birds, close_pairs, close_time, close_space, nmcm):
+    """Store the risk result (and # of birds, etc) for the given date and tile_id."""
     tablename = "risk" + riskdate.strftime("%Y-%m-%d") 
     querystring = "INSERT INTO \"" + tablename + "\" (tile_id, num_birds, close_pairs, close_space, close_time, nmcm) VALUES (%s, %s, %s, %s, %s, %s)"
     try:
@@ -733,6 +783,7 @@ def insert_result(riskdate, tile_id, num_birds, close_pairs, close_time, close_s
          
 
 def daily_risk(riskdate, startpoly=None, endpoly=None):
+    """For a given date, loop over all the polygons and calculate risk."""
     rows = get_ids(startpoly, endpoly)
 
     risk_tab = create_daily_risk_table(riskdate)
@@ -773,11 +824,12 @@ def daily_risk(riskdate, startpoly=None, endpoly=None):
 ##########################################################################
 
 def calculate_probabilities():
-  # This method calculates the probability and cumulative
-  # probability for each record in the distribution values table
-  # if they are unset. To calculate everything in the table it
-  # must be called from a loop over all records in the table.  It
-  # is now called from a loop after the end of creating the distributions.
+  """This method calculates the probability and cumulative
+  probability for each record in the distribution values table
+  if they are unset. To calculate everything in the table it
+  must be called from a loop over all records in the table.  It
+  is now called from a loop after the end of creating the distributions.
+  """
   
   querystring = "SELECT * FROM \"" + dist_margs_table + "\""
   try:
@@ -834,14 +886,16 @@ def calculate_probabilities():
   # end outer loop
 
 def get_param_record_id(close_space, close_time, spatial_domain, temporal_domain):
-
-  # Right now this is faked
+  """Return the id for this particular combination of parameters.
+  Right now this is faked
+  """
 
   return 12345678 # later this will be a real id
 
-# dist_margs means "distribution marginals" and is the result of the
-# monte carlo simulations.  See Theophilides et al. for more information
 def create_dist_margs(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain, start_number=15, end_number=100):
+  """dist_margs means "distribution marginals" and is the result of the
+  monte carlo simulations.  See Theophilides et al. for more information
+  """
 
   param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
   # If record doesn't exist, create a new one... in any case, return the id.
@@ -1023,8 +1077,13 @@ def create_dist_margs(local_close_space, local_close_time, local_spatial_domain,
 
 #def post_analysis():
 def human_data_compare(startdate, enddate, window=None):
-    # the human data could be populated without regard for window, but 
-    # including the window is necessary to imitate previous functionality
+    """For each human case, find the earliest date that analysis cell
+    was identified at risk, and how long it remained lit. Stores the results
+    in the human cases table.
+    
+    Note, the human data could be populated without regard for window, but 
+    including the window is necessary to imitate previous functionality
+    """
     querystring = "UPDATE \"" + human_cases_table_projected + "\" SET days_lit = %s, days_before = %s" 
     try:
         cur.execute(querystring, (default_days_lit,default_days_before))
@@ -1090,11 +1149,13 @@ def human_data_compare(startdate, enddate, window=None):
         print "window was not tested"
 
 def populate_histograms():
-    #select uniq number of humans at each lag
+    """select uniq number of humans at each lag.
+    Currently a dummy function.
+    """
     logging.info("test of dummy populate_histograms function")
 
 def text_export(window=None, file_prefix=None, countyname=None):
-    #print two tsvs using previous format, suitable for Excel
+    """print two tsvs of post-analysis results, suitable for Excel"""
 
     days_lit_dict = {}
 
@@ -1245,7 +1306,7 @@ def text_export(window=None, file_prefix=None, countyname=None):
     print "%s\thit %s of %s\t%0.2f" % (countyname, tot_hit, tot_cumul, 100*(tot_hit / tot_cumul))
 
 def text_export_all_counties(window=None, file_prefix=None):
-    #querystring = "SELECT name FROM county_codes"
+    """Export separate post-analysis results for each county."""
     querystring = "SELECT name FROM counties ORDER BY name"
     try:
         cur.execute(querystring)
@@ -1259,9 +1320,13 @@ def text_export_all_counties(window=None, file_prefix=None):
         text_export(window, file_prefix, county[0])
 
 def get_analysis_area_id():
-    # Right now this function returns the ID of the first record. This will
-    # be used as the analysis region (the "participating area")
-    # If no records are found, return None and kappa will analyze all tiles 
+    """Return the database id of the analysis area.
+    
+    Currently only one analysis area is allowed, so this function returns 
+    the ID of the first record. This will be used as the analysis region 
+    (the "participating area").
+    If no records are found, return None and kappa will analyze all tiles.
+    """
    
     querystring = "SELECT id FROM \"" + analysis_area_table + "\""
     try:
@@ -1278,8 +1343,9 @@ def get_analysis_area_id():
       return None
 
 def init_kappa_output(filename=None):
-    # Print the first line of the Kappa output, a tsv file suitable for Excel
-    # If no filename is given, print to stdout
+    """Print the first line of the Kappa output, a tsv file suitable for Excel.
+    If no filename is given, print to stdout.
+    """
     localfile = None
     if filename:
         localfile = open(filename, 'w')
@@ -1290,10 +1356,12 @@ def init_kappa_output(filename=None):
     return localfile
 
 def close_kappa_output(localfile=None):
+    """Close the kappa output file when we're done writing to it."""
     if localfile:
         localfile.close
     
 def kappa(window, lag, startdate, enddate, analysis_area_id=None, localfile=None):
+    """Perform the Kappa analysis."""
 
     logging.info("running kappa: window %s lag %s", window, lag)
     # Should there be a check if there is continuous risk days generated?
