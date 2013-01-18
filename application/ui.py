@@ -216,6 +216,31 @@ class DYCAST_control(ttk.Frame):
         self.status_label["text"] = "Status: ready"
         self.status_label.update_idletasks()
         
+    def run_nmcm(self):
+        self.status_label["text"] = "Status: running monte carlo simulations..."
+        self.status_label.update_idletasks()
+        self.kappa_button["state"] = DISABLED
+        
+        closespace = float(self.nmcm_close_space_entry.get())
+        closetime = int(self.nmcm_close_time_entry.get())
+        spatialdomain = float(self.nmcm_spatial_domain_entry.get())
+        temporaldomain = int(self.nmcm_temporal_domain_entry.get())
+        startnumber = int(self.nmcm_start_number_entry.get())
+        endnumber = int(self.nmcm_end_number_entry.get())
+        
+        for birdnumber in range(startnumber, endnumber):
+          self.status_label["text"] = "Status: running monte carlo simulations with %s birds..." % birdnumber 
+          self.status_label.update_idletasks()
+          dycast.create_dist_margs(closespace, closetime, spatialdomain, temporaldomain, birdnumber, birdnumber)
+
+        self.status_label["text"] = "Status: calculating cumulative probabilities, almost finished..."
+        self.status_label.update_idletasks()
+        dycast.calculate_probabilities()
+        
+        self.kappa_button["state"] = NORMAL
+        self.status_label["text"] = "Status: ready"
+        self.status_label.update_idletasks()
+        
     def createWidgets(self):
         
         self.n = ttk.Notebook(self)
@@ -224,7 +249,10 @@ class DYCAST_control(ttk.Frame):
         
         self.daily_frame = ttk.Frame(self.n)
         self.postseason_frame = ttk.Frame(self.n)
+        self.init_frame = ttk.Frame(self.n)
 
+        # Begin "daily tasks" page in the notebook
+        
         self.label2 = ttk.Label(self.daily_frame)
         self.label2["text"] = "load dead birds from file(s):\n"
         self.label2.grid(column=0, row=0, columnspan=7, sticky=(W))
@@ -407,11 +435,79 @@ class DYCAST_control(ttk.Frame):
         self.kappa_button["command"] =  self.run_kappa
         
         self.kappa_button.grid(column=6, row=6)
+       
+        # Begin "initialization" page in the notebook
+        
+        self.nmcm_frame = ttk.Frame(self.init_frame, borderwidth=2, relief=RAISED)
+        self.nmcm_frame.grid(column=0, row=0, columnspan=7, sticky=(E, W))
+        
+        self.nmcm_frame.columnconfigure(1, weight=1)
+        self.nmcm_frame.columnconfigure(2, weight=2)
+        self.nmcm_frame.columnconfigure(3, weight=1)
+
+        self.label_nmcm = ttk.Label(self.nmcm_frame)
+        self.label_nmcm["text"] = "Monte Carlo simulations:\n"
+        self.label_nmcm.grid(column=0, row=0)
+        
+        self.nmcm_close_space_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_close_space_label["text"] = "closeness in space (miles):"
+        self.nmcm_close_space_label.grid(column=0, row=1, sticky=(E))
+
+        self.nmcm_close_space_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_close_space_entry.insert(0, "0.25")
+        self.nmcm_close_space_entry.grid(column=1, row=1)
+        
+        self.nmcm_close_time_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_close_time_label["text"] = "closeness in time (days):"
+        self.nmcm_close_time_label.grid(column=2, row=1, sticky=(E))
+        
+        self.nmcm_close_time_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_close_time_entry.insert(0, "3")
+        self.nmcm_close_time_entry.grid(column=3, row=1)
+        
+        self.nmcm_spatial_domain_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_spatial_domain_label["text"] = "spatial domain (miles):"
+        self.nmcm_spatial_domain_label.grid(column=4, row=1, sticky=(E))
+
+        self.nmcm_spatial_domain_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_spatial_domain_entry.insert(0, "1.5")
+        self.nmcm_spatial_domain_entry.grid(column=5, row=1)
+        
+        self.nmcm_temporal_domain_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_temporal_domain_label["text"] = "temporal domain (days):"
+        self.nmcm_temporal_domain_label.grid(column=6, row=1, sticky=(E))
+        
+        self.nmcm_temporal_domain_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_temporal_domain_entry.insert(0, "21")
+        self.nmcm_temporal_domain_entry.grid(column=7, row=1)
+        
+        self.nmcm_start_number_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_start_number_label["text"] = "starting number of birds:"
+        self.nmcm_start_number_label.grid(column=0, row=2, sticky=(E))
+
+        self.nmcm_start_number_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_start_number_entry.insert(0, "15")
+        self.nmcm_start_number_entry.grid(column=1, row=2)
+        
+        self.nmcm_end_number_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_end_number_label["text"] = "ending number of birds:"
+        self.nmcm_end_number_label.grid(column=2, row=2, sticky=(E))
+        
+        self.nmcm_end_number_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_end_number_entry.insert(0, "100")
+        self.nmcm_end_number_entry.grid(column=3, row=2)
+        
+        self.nmcm_button = ttk.Button(self.nmcm_frame)
+        self.nmcm_button["text"] = "run monte carlo simulation"
+        self.nmcm_button["command"] =  self.run_nmcm
+        
+        self.nmcm_button.grid(column=8, row=3)
         
         ##
         
         self.n.add(self.daily_frame, text="Daily Tasks")
         self.n.add(self.postseason_frame, text="Post Season Tasks")
+        self.n.add(self.init_frame, text="Initialization Tasks")
 
         self.status_label = ttk.Label(self, relief=SUNKEN, anchor=W)
         self.status_label["text"] = "Status: ready"

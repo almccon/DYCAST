@@ -40,8 +40,8 @@ except ImportError:
     print "couldn't import psycopg2 library in path:", sys.path
     sys.exit()
 
-#loglevel = logging.DEBUG        # For debugging
-loglevel = logging.INFO         # appropriate for normal use
+loglevel = logging.DEBUG        # For debugging
+#loglevel = logging.INFO         # appropriate for normal use
 #loglevel = logging.WARNING      # appropriate for almost silent use
 
 conn = 0
@@ -845,10 +845,10 @@ def calculate_probabilities():
     [number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time] = row
     #if cumulative_probability is None or cumulative_probability < 0:
     if cumulative_probability > 0:
-      print "cumulative_probability already exists. Overwriting..."
+      logging.warning("cumulative_probability already exists. Overwriting...")
         
     if probability is None or probability < 1:
-      print "found an empty probability. This should not happen"
+      logging.warning("found an empty probability. This should not happen")
       probability = 1
 
     counter = 0
@@ -881,7 +881,7 @@ def calculate_probabilities():
       logging.error(inst)
     conn.commit()
     
-    print "cumulative_probability: %s" % cumulative_probability    
+    #print "cumulative_probability: %s" % cumulative_probability    
 
   # end outer loop
 
@@ -892,10 +892,20 @@ def get_param_record_id(close_space, close_time, spatial_domain, temporal_domain
 
   return 12345678 # later this will be a real id
 
-def create_dist_margs(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain, start_number=15, end_number=100):
+def create_dist_margs(close_space, close_time, spatial_domain, temporal_domain, start_number=15, end_number=100):
   """dist_margs means "distribution marginals" and is the result of the
-  monte carlo simulations.  See Theophilides et al. for more information
+  monte carlo simulations.  See Theophilides et al. for more information.
+  
+  close_space and spatial_domain should be given in units of miles,
+  which will be immediately converted to metres. 
+  close_time and temporal_domain are in units of days.
   """
+  
+  local_close_space = float(close_space) * miles_to_metres
+  local_close_time = close_time
+  local_spatial_domain = float(spatial_domain) * miles_to_metres
+  local_temporal_domain = temporal_domain
+  
 
   param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
   # If record doesn't exist, create a new one... in any case, return the id.
@@ -914,9 +924,9 @@ def create_dist_margs(local_close_space, local_close_time, local_spatial_domain,
 
   st = time.time()
 
-  for a_bird_number in range(start_number, end_number):
+  for a_bird_number in range(start_number, end_number+1):
 
-    print "a_bird_number", a_bird_number
+    # print "a_bird_number", a_bird_number
     lt = time.time()
 
     # Run the monte carlo 5000 times
@@ -924,8 +934,8 @@ def create_dist_margs(local_close_space, local_close_time, local_spatial_domain,
 
       if not i % 1000:
         t = time.time()
-        #logging.debug("%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s", a_bird_number, i, t - lt, t - st)
-        print "%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s" % (a_bird_number, i, t - lt, t - st)
+        logging.debug("%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s", a_bird_number, i, t - lt, t - st)
+        #print "%s birds, simulation %s of 5000. Loop time elapsed: %s. Total time elapsed: %s" % (a_bird_number, i, t - lt, t - st)
   
       # wipe temp table (do I already have a function for this?)
 
@@ -1038,7 +1048,7 @@ def create_dist_margs(local_close_space, local_close_time, local_spatial_domain,
         probability = rows[0][0]
 
         if probability == None or probability < 1:
-          print "found an empty probability. Somehow this was created wrong?"
+          logging.error("found an empty probability. Somehow this was created wrong?")
           probability = 2
        
         else: 
