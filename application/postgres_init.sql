@@ -141,14 +141,23 @@ CREATE TABLE all_risk (
     date date
 );
 
+CREATE TABLE dist_margs_params (
+    param_id serial PRIMARY KEY,
+    close_space_param float,
+    close_time_param integer,
+    spatial_domain_param float,
+    temporal_domain_param integer
+);
+
 CREATE TABLE dist_margs (
-    param_id integer,
+    param_id integer REFERENCES dist_margs_params (param_id),
     number_of_birds integer,
     close_pairs integer,
     probability float,
     cumulative_probability float,
     close_space integer,
-    close_time integer
+    close_time integer,
+    CONSTRAINT dist_margs_pkey PRIMARY KEY (param_id, number_of_birds, close_pairs, close_space, close_time)
 );
 
 CREATE INDEX dist_margs_paridx ON dist_margs (param_id);

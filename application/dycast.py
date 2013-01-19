@@ -74,6 +74,7 @@ effects_poly_tiles_table = "x"
 all_risk_table = "x"
 analysis_area_table = "x"
 dist_margs_table = "x"
+dist_margs_params_table = "x"
 
 #def create_analysis_grid():
 #def load_prepared_analysis_grid():
@@ -107,6 +108,7 @@ def read_config(filename):
     global all_risk_table
     global analysis_area_table
     global dist_margs_table
+    global dist_margs_params_table
     global sd
     global td
     global cs
@@ -145,6 +147,7 @@ def read_config(filename):
     all_risk_table = config.get("database", "all_risk_table")
     analysis_area_table = config.get("database", "analysis_area_table")
     dist_margs_table = config.get("database", "distribution_marginals_table")
+    dist_margs_params_table = config.get("database", "distribution_marginals_params")
 
     sd = float(config.get("dycast", "spatial_domain")) * miles_to_metres
     cs = float(config.get("dycast", "close_in_space")) * miles_to_metres
@@ -895,12 +898,35 @@ def calculate_probabilities(param_record_id=None):
   # end outer loop
 
 def get_param_record_id(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param):
-  """Return the id for this particular combination of parameters.
-  Right now this is faked
+  """Return the id for this particular combination of parameters. Create new id if none exists.
   """
-  # If record doesn't exist, create a new one... in any case, return the id.
-
-  return 12345678 # later this will be a real id
+  
+  querystring = "SELECT param_id FROM \"" + dist_margs_params_table + "\" WHERE close_space_param = %s and close_time_param = %s and spatial_domain_param = %s and temporal_domain_param = %s"
+  try:
+    cur.execute(querystring, (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param))
+  except Exception, inst:
+    logging.error("couldn't select param_id from %s", dist_margs_params_table)
+    logging.error(inst)
+    return -1
+  rows = cur.fetchall()
+  if len(rows) > 1:
+    logging.warning("got more than one param_id! This should not happen. Returning the first one.")
+    return rows[0][0]
+  elif len(rows) == 1:
+    return rows[0][0]
+  else:
+    # If record doesn't exist, create a new one... 
+    querystring = "INSERT INTO \"" + dist_margs_params_table + "\" (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param) VALUES (%s, %s, %s, %s) RETURNING param_id"
+    try:
+      cur.execute(querystring, (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param))
+    except Exception, inst:
+      conn.rollback()
+      logging.error("couldn't insert new parameters set")
+      logging.error(inst)
+      return -1
+    conn.commit()
+    rows = cur.fetchall()
+    return rows[0][0]
 
 def create_dist_margs(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param, start_number=15, end_number=100):
   """dist_margs means "distribution marginals" and is the result of the
