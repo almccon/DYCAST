@@ -345,92 +345,91 @@ class DYCAST_control(ttk.Frame):
 
         # Begin "postseason" page in the notebook
 
-        self.kappa_frame = ttk.Frame(self.postseason_frame, borderwidth=2, relief=RAISED)
-        self.kappa_frame.grid(column=0, row=0, columnspan=7, sticky=(E, W))
+        self.postseason_frame.grid(column=0, row=0, columnspan=7, sticky=(E, W))
         
-        self.label_kappa = ttk.Label(self.kappa_frame)
+        self.label_kappa = ttk.Label(self.postseason_frame)
         self.label_kappa["text"] = "Kappa analysis:\n"
         self.label_kappa.grid(column=0, row=0)
         
-        self.kappa_window_start_label = ttk.Label(self.kappa_frame)
+        self.kappa_window_start_label = ttk.Label(self.postseason_frame)
         self.kappa_window_start_label["text"] = "window start:"
         self.kappa_window_start_label.grid(column=0, row=1, sticky=(E))
 
-        self.kappa_window_start_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_window_start_entry = ttk.Entry(self.postseason_frame)
         self.kappa_window_start_entry.grid(column=1, row=1)
         
-        self.kappa_window_end_label = ttk.Label(self.kappa_frame)
+        self.kappa_window_end_label = ttk.Label(self.postseason_frame)
         self.kappa_window_end_label["text"] = "window end:"
         self.kappa_window_end_label.grid(column=2, row=1, sticky=(E))
         
-        self.kappa_window_end_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_window_end_entry = ttk.Entry(self.postseason_frame)
         self.kappa_window_end_entry.grid(column=3, row=1)
         
-        self.kappa_window_step_label = ttk.Label(self.kappa_frame)
+        self.kappa_window_step_label = ttk.Label(self.postseason_frame)
         self.kappa_window_step_label["text"] = "window step:"
         self.kappa_window_step_label.grid(column=4, row=1, sticky=(E))
         
-        self.kappa_window_step_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_window_step_entry = ttk.Entry(self.postseason_frame)
         self.kappa_window_step_entry.grid(column=5, row=1)
         
-        self.kappa_lag_start_label = ttk.Label(self.kappa_frame)
+        self.kappa_lag_start_label = ttk.Label(self.postseason_frame)
         self.kappa_lag_start_label["text"] = "lag start:"
         self.kappa_lag_start_label.grid(column=0, row=2, sticky=(E))
         
-        self.kappa_lag_start_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_lag_start_entry = ttk.Entry(self.postseason_frame)
         self.kappa_lag_start_entry.grid(column=1, row=2)
         
-        self.kappa_lag_end_label = ttk.Label(self.kappa_frame)
+        self.kappa_lag_end_label = ttk.Label(self.postseason_frame)
         self.kappa_lag_end_label["text"] = "lag end:"
         self.kappa_lag_end_label.grid(column=2, row=2, sticky=(E))
         
-        self.kappa_lag_end_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_lag_end_entry = ttk.Entry(self.postseason_frame)
         self.kappa_lag_end_entry.grid(column=3, row=2)
         
-        self.kappa_lag_step_label = ttk.Label(self.kappa_frame)
+        self.kappa_lag_step_label = ttk.Label(self.postseason_frame)
         self.kappa_lag_step_label["text"] = "lag step:"
         self.kappa_lag_step_label.grid(column=4, row=2, sticky=(E)) 
         
-        self.kappa_lag_step_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_lag_step_entry = ttk.Entry(self.postseason_frame)
         self.kappa_lag_step_entry.grid(column=5, row=2)
         
-        self.kappa_startdate_label = ttk.Label(self.kappa_frame)
+        self.kappa_startdate_label = ttk.Label(self.postseason_frame)
         self.kappa_startdate_label["text"] = "start date:"
         self.kappa_startdate_label.grid(column=0, row=3, sticky=(E))
 
-        self.kappa_startdate_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_startdate_entry = ttk.Entry(self.postseason_frame)
         self.kappa_startdate_entry.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.kappa_startdate_entry.grid(column=1, row=3)
 
-        self.kappa_enddate_label = ttk.Label(self.kappa_frame)
+        self.kappa_enddate_label = ttk.Label(self.postseason_frame)
         self.kappa_enddate_label["text"] = "end date:"
         self.kappa_enddate_label.grid(column=2, row=3, sticky=(E))
 
-        self.kappa_enddate_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_enddate_entry = ttk.Entry(self.postseason_frame)
         self.kappa_enddate_entry.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
         self.kappa_enddate_entry.grid(column=3, row=3)
        
-        self.kappa_export_dir_label = ttk.Label(self.kappa_frame)
+        self.kappa_export_dir_label = ttk.Label(self.postseason_frame)
         self.kappa_export_dir_label["text"] = "export directory:"
         self.kappa_export_dir_label.grid(column=0, row=4, sticky=(E))
         
-        self.kappa_export_dir_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_export_dir_entry = ttk.Entry(self.postseason_frame)
         self.kappa_export_dir_entry.grid(column=1, row=4, columnspan=5, sticky=(E,W))
         
-        self.kappa_export_dir_button = ttk.Button(self.kappa_frame)
+        self.kappa_export_dir_button = ttk.Button(self.postseason_frame)
         self.kappa_export_dir_button["text"] = "browse"
         self.kappa_export_dir_button["command"] = self.set_kappa_export_dir
         self.kappa_export_dir_button.grid(column=6, row=4)
         
-        self.kappa_export_file_label = ttk.Label(self.kappa_frame)
+        self.kappa_export_file_label = ttk.Label(self.postseason_frame)
         self.kappa_export_file_label["text"] = "export filename:"
         self.kappa_export_file_label.grid(column=0, row=5, sticky=(E))
         
-        self.kappa_export_file_entry = ttk.Entry(self.kappa_frame)
+        self.kappa_export_file_entry = ttk.Entry(self.postseason_frame)
         self.kappa_export_file_entry.insert(0, "kappa.tsv")
         self.kappa_export_file_entry.grid(column=1, row=5)
          
-        self.kappa_button = ttk.Button(self.kappa_frame)
+        self.kappa_button = ttk.Button(self.postseason_frame)
         self.kappa_button["text"] = "run kappa"
         self.kappa_button["command"] =  self.run_kappa
         
@@ -438,66 +437,65 @@ class DYCAST_control(ttk.Frame):
        
         # Begin "initialization" page in the notebook
         
-        self.nmcm_frame = ttk.Frame(self.init_frame, borderwidth=2, relief=RAISED)
-        self.nmcm_frame.grid(column=0, row=0, columnspan=7, sticky=(E, W))
+        self.init_frame.grid(column=0, row=0, columnspan=7, sticky=(E, W))
         
-        self.nmcm_frame.columnconfigure(1, weight=1)
-        self.nmcm_frame.columnconfigure(2, weight=2)
-        self.nmcm_frame.columnconfigure(3, weight=1)
+        self.init_frame.columnconfigure(1, weight=1)
+        self.init_frame.columnconfigure(2, weight=2)
+        self.init_frame.columnconfigure(3, weight=1)
 
-        self.label_nmcm = ttk.Label(self.nmcm_frame)
+        self.label_nmcm = ttk.Label(self.init_frame)
         self.label_nmcm["text"] = "Monte Carlo simulations:\n"
         self.label_nmcm.grid(column=0, row=0)
         
-        self.nmcm_close_space_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_close_space_label = ttk.Label(self.init_frame)
         self.nmcm_close_space_label["text"] = "closeness in space (miles):"
         self.nmcm_close_space_label.grid(column=0, row=1, sticky=(E))
 
-        self.nmcm_close_space_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_close_space_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_close_space_entry.insert(0, "0.25")
         self.nmcm_close_space_entry.grid(column=1, row=1)
         
-        self.nmcm_close_time_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_close_time_label = ttk.Label(self.init_frame)
         self.nmcm_close_time_label["text"] = "closeness in time (days):"
         self.nmcm_close_time_label.grid(column=2, row=1, sticky=(E))
         
-        self.nmcm_close_time_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_close_time_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_close_time_entry.insert(0, "3")
         self.nmcm_close_time_entry.grid(column=3, row=1)
         
-        self.nmcm_spatial_domain_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_spatial_domain_label = ttk.Label(self.init_frame)
         self.nmcm_spatial_domain_label["text"] = "spatial domain (miles):"
         self.nmcm_spatial_domain_label.grid(column=4, row=1, sticky=(E))
 
-        self.nmcm_spatial_domain_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_spatial_domain_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_spatial_domain_entry.insert(0, "1.5")
         self.nmcm_spatial_domain_entry.grid(column=5, row=1)
         
-        self.nmcm_temporal_domain_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_temporal_domain_label = ttk.Label(self.init_frame)
         self.nmcm_temporal_domain_label["text"] = "temporal domain (days):"
         self.nmcm_temporal_domain_label.grid(column=6, row=1, sticky=(E))
         
-        self.nmcm_temporal_domain_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_temporal_domain_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_temporal_domain_entry.insert(0, "21")
         self.nmcm_temporal_domain_entry.grid(column=7, row=1)
         
-        self.nmcm_start_number_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_start_number_label = ttk.Label(self.init_frame)
         self.nmcm_start_number_label["text"] = "starting number of birds:"
         self.nmcm_start_number_label.grid(column=0, row=2, sticky=(E))
 
-        self.nmcm_start_number_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_start_number_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_start_number_entry.insert(0, "15")
         self.nmcm_start_number_entry.grid(column=1, row=2)
         
-        self.nmcm_end_number_label = ttk.Label(self.nmcm_frame)
+        self.nmcm_end_number_label = ttk.Label(self.init_frame)
         self.nmcm_end_number_label["text"] = "ending number of birds:"
         self.nmcm_end_number_label.grid(column=2, row=2, sticky=(E))
         
-        self.nmcm_end_number_entry = ttk.Entry(self.nmcm_frame, width=5)
+        self.nmcm_end_number_entry = ttk.Entry(self.init_frame, width=5)
         self.nmcm_end_number_entry.insert(0, "100")
         self.nmcm_end_number_entry.grid(column=3, row=2)
         
-        self.nmcm_button = ttk.Button(self.nmcm_frame)
+        self.nmcm_button = ttk.Button(self.init_frame)
         self.nmcm_button["text"] = "run monte carlo simulation"
         self.nmcm_button["command"] =  self.run_nmcm
         
