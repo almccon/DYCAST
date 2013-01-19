@@ -241,6 +241,45 @@ class DYCAST_control(ttk.Frame):
         self.status_label["text"] = "Status: ready"
         self.status_label.update_idletasks()
         
+    def set_nmcm_import_file(self):
+        self.files = tkFileDialog.askopenfilenames(parent=self, title="select dead bird files")
+        self.nmcm_load_file_entry.delete(0, END)
+        self.nmcm_load_file_entry.insert(0, self.files)
+        
+    def load_nmcm(self):
+        self.status_label["text"] = "Status: loading monte carlo results..."
+        self.status_label.update_idletasks()
+        self.nmcm_load_button["state"] = DISABLED
+       
+        closespace = float(self.nmcm_load_cs_entry.get())
+        closetime = int(self.nmcm_load_ct_entry.get())
+        spatialdomain = float(self.nmcm_load_sd_entry.get())
+        temporaldomain = int(self.nmcm_load_td_entry.get())
+        
+        self.files = self.nmcm_load_file_entry.get()
+        self.files = self.files.split(" ")
+        try:
+            for file in self.files:
+                dir, base = os.path.split(file)
+                self.status_label["text"] = "Status: loading monte carlo results... %s" % base
+                self.status_label.update_idletasks()
+                dycast.load_prepared_dist_margs(closespace, closetime, spatialdomain, temporaldomain, file)
+        except Exception, inst:
+            if (self.files):
+                tkMessageBox.showwarning(
+                    "Open file",
+                    "Cannot open file(s): %s, message: %s" % (self.files, inst)
+                )
+            else:
+                tkMessageBox.showwarning(
+                    "Open file",
+                    "No files selected"
+                )
+
+        self.nmcm_load_button["state"] = NORMAL
+        self.status_label["text"] = "Status: ready"
+        self.status_label.update_idletasks()
+        
     def createWidgets(self):
         
         self.n = ttk.Notebook(self)
@@ -496,10 +535,66 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_end_number_entry.grid(column=3, row=2)
         
         self.nmcm_button = ttk.Button(self.init_frame)
-        self.nmcm_button["text"] = "run monte carlo simulation"
+        self.nmcm_button["text"] = "run simulation"
         self.nmcm_button["command"] =  self.run_nmcm
         
-        self.nmcm_button.grid(column=8, row=3)
+        self.nmcm_button.grid(column=8, row=2)
+      
+        self.sep20 = ttk.Separator(self.init_frame)
+        self.sep20.grid(column=0, row=5, columnspan=9, sticky=(N,S,E,W), ipadx=40)
+        
+        self.nmcm_load_label = ttk.Label(self.init_frame)
+        self.nmcm_load_label["text"] = "Load precalculated Monte Carlo results:"
+        self.nmcm_load_label.grid(column=0, row=6, columnspan=7, sticky=(W, S))
+        
+        self.nmcm_load_cs_label = ttk.Label(self.init_frame)
+        self.nmcm_load_cs_label["text"] = "closeness in space (miles):"
+        self.nmcm_load_cs_label.grid(column=0, row=7, sticky=(E))
+
+        self.nmcm_load_cs_entry = ttk.Entry(self.init_frame, width=5)
+        self.nmcm_load_cs_entry.insert(0, "0.25")
+        self.nmcm_load_cs_entry.grid(column=1, row=7)
+        
+        self.nmcm_load_ct_label = ttk.Label(self.init_frame)
+        self.nmcm_load_ct_label["text"] = "closeness in time (days):"
+        self.nmcm_load_ct_label.grid(column=2, row=7, sticky=(E))
+        
+        self.nmcm_load_ct_entry = ttk.Entry(self.init_frame, width=5)
+        self.nmcm_load_ct_entry.insert(0, "3")
+        self.nmcm_load_ct_entry.grid(column=3, row=7)
+        
+        self.nmcm_load_sd_label = ttk.Label(self.init_frame)
+        self.nmcm_load_sd_label["text"] = "spatial domain (miles):"
+        self.nmcm_load_sd_label.grid(column=4, row=7, sticky=(E))
+
+        self.nmcm_load_sd_entry = ttk.Entry(self.init_frame, width=5)
+        self.nmcm_load_sd_entry.insert(0, "1.5")
+        self.nmcm_load_sd_entry.grid(column=5, row=7)
+        
+        self.nmcm_load_td_label = ttk.Label(self.init_frame)
+        self.nmcm_load_td_label["text"] = "temporal domain (days):"
+        self.nmcm_load_td_label.grid(column=6, row=7, sticky=(E))
+        
+        self.nmcm_load_td_entry = ttk.Entry(self.init_frame, width=5)
+        self.nmcm_load_td_entry.insert(0, "21")
+        self.nmcm_load_td_entry.grid(column=7, row=7) 
+        
+        self.nmcm_load_file_label = ttk.Label(self.init_frame)
+        self.nmcm_load_file_label["text"] = "filename:"
+        self.nmcm_load_file_label.grid(column=0, row=8)
+        
+        self.nmcm_load_file_entry = ttk.Entry(self.init_frame)
+        self.nmcm_load_file_entry.grid(column=1, row=8, columnspan=7, sticky=(E, W))
+        
+        self.nmcm_load_file_button = ttk.Button(self.init_frame)
+        self.nmcm_load_file_button["text"] = "browse"
+        self.nmcm_load_file_button["command"] = self.set_nmcm_import_file
+        self.nmcm_load_file_button.grid(column=8, row=8)
+        
+        self.nmcm_load_button = ttk.Button(self.init_frame)
+        self.nmcm_load_button["text"] = "load results"
+        self.nmcm_load_button["command"] = self.load_nmcm
+        self.nmcm_load_button.grid(column=8, row=9)
         
         ##
         

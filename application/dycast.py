@@ -942,7 +942,6 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
   local_spatial_domain = float(spatial_domain_param) * miles_to_metres
   local_temporal_domain = temporal_domain_param
   
-
   param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
 
   # TODO: This should prompt before deleting!
@@ -1105,7 +1104,60 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
         sys.exit()
 
 #def create_multiple_dist_margs():
-#def load_prepared_dist_margs():
+def load_prepared_dist_margs(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param, filename):
+  """Load a tsv file of pre-generated monte carlo results.
+  
+  The first four arguments are the parameters that were used to generate these results:
+  The fifth argument is the file to read from.
+  
+  The input file must be a TSV file with one header line (which will be ignored).
+  The fields must be in this order: 
+  number_of_birds  close_pairs  probability  cumulative_probability  close_space  close_time
+  """
+  
+  local_close_space = float(close_space_param) * miles_to_metres
+  local_close_time = close_time_param
+  local_spatial_domain = float(spatial_domain_param) * miles_to_metres
+  local_temporal_domain = temporal_domain_param
+  
+  param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
+  
+  # wipe existing distributions
+
+  querystring = "DELETE FROM \"" + dist_margs_table + "\" WHERE param_id = %s"
+  try:
+    cur.execute(querystring, (param_record_id,))
+  except Exception, inst:
+    conn.rollback()
+    logging.warning("couldn't delete existing distributions")
+    logging.warning(inst)
+  conn.commit()
+ 
+  lines_read = 0
+  for line in fileinput.input(filename):
+    
+    if fileinput.filelineno() != 1: # Ignore the header line  
+      lines_read += 1
+      
+      try:
+        (number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time) = line.split("\t")
+      except ValueError:
+        logging.error("incorrect number of fields: %s", line.rstrip())
+        return 0
+      
+      querystring = "INSERT INTO \"" + dist_margs_table + "\" (param_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+      try:
+        cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time))
+      except Exception, inst:
+        conn.rollback()
+        logging.error("couldn't insert monte carlo result from file")
+        logging.error(inst)
+        return 0
+      conn.commit()
+      
+  logging.info("finished loading prepared monte carlo results from %s: loaded %s lines", filename, lines_read)
+      
+  
 #def export_prepared_dist_margs():
 
 ##########################################################################
