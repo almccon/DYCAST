@@ -7,10 +7,10 @@ import optparse
 
 usage = "usage: %prog [options]"
 p = optparse.OptionParser(usage)
-p.add_option('--closespace', default=1, type="float")
-p.add_option('--closetime', default=1, type="int")
-p.add_option('--spatialdomain', default=1, type="float")
-p.add_option('--temporaldomain', default=3, type="int")
+p.add_option('--closespace', default=0.25, type="float")
+p.add_option('--closetime', default=3, type="int")
+p.add_option('--spatialdomain', default=1.5, type="float")
+p.add_option('--temporaldomain', default=21, type="int")
 p.add_option('--startnumber', default=15, type="int")
 p.add_option('--endnumber', default=100, type="int")
 
