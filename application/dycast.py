@@ -115,6 +115,7 @@ def read_config(filename):
     global ct
     global threshold
     global logfile
+    global temp_table_bird_selection
 
     config = ConfigParser.SafeConfigParser()
     config.read(filename)
@@ -154,6 +155,8 @@ def read_config(filename):
     ct = int(config.get("dycast", "close_in_time"))
     td = int(config.get("dycast", "temporal_domain"))
     threshold = int(config.get("dycast", "bird_threshold"))
+    
+    temp_table_bird_selection = "temp_table_bird_selection" # Doesn't need to be in config file
 
 def init_logging():
     logging.basicConfig(format='%(asctime)s %(levelname)8s %(message)s', 
@@ -722,19 +725,28 @@ def create_effects_poly_bird_table(bird_tab, tile_id, spatial_domain):
     # Question: isn't this table also getting created in postgres_init.sql?
     # Will this function create an incompatible version of that table?
 
-    tablename = "temp_table_bird_selection" 
     #tablename = bird_tab + "_" + tile_id
     # I don't think this can be a temp table, or else I'd have to use "EXECUTE"
     # (See Postgresql FAQ about functions and temp tables)
-    querystring = "CREATE TABLE \"" + tablename + "\" AS SELECT * from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
+    querystring = "CREATE TEMP TABLE \"" + temp_table_bird_selection + "\" AS SELECT * from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
         cur.execute(querystring, (tile_id, spatial_domain))
     except:
         conn.rollback()
-        cur.execute("DROP TABLE \"" + tablename + "\"")
+        cur.execute("DROP TABLE \"" + temp_table_bird_selection + "\"")
         cur.execute(querystring, (tile_id, spatial_domain))
     conn.commit()
-    return tablename 
+    
+    #Return the number of birds within the spatial domain of the tile center.
+    querystring = "SELECT count(*) from \"" + temp_table_bird_selection + "\""
+    try:
+        cur.execute(querystring)
+    except Exception, inst:
+        logging.error("can't select bird count")
+        logging.error(inst)
+        sys.exit()
+    new_row = cur.fetchone()
+    return new_row[0]
 
 def cst_cs_ct_wrapper(close_space_param, close_time_param):
     """A wrapper to a plpgsql function that returns the close in space 
@@ -814,6 +826,11 @@ def daily_risk(riskdate, close_space_param, close_time_param, spatial_domain_par
         inc += 1
         if not inc % 1000:
             logging.debug("tile_id: %s done: %s time elapsed: %s", tile_id, inc, time.time() - st)
+            
+        # We are making the same query twice, in this function and then again
+        # in the next function, but it is more efficient to check first
+        # whether or not we need to save the results as a new table.
+            
         num_birds = check_bird_count(dead_birds_daterange, tile_id, local_spatial_domain_param)
         if num_birds >= threshold:
             create_effects_poly_bird_table(dead_birds_daterange, tile_id, local_spatial_domain_param)
@@ -991,7 +1008,7 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
   
       # wipe temp table (do I already have a function for this?)
 
-      querystring = "DELETE FROM temp_table_bird_selection"
+      querystring = "DELETE FROM \"" + temp_table_bird_selection + "\""
       try:
         cur.execute(querystring)
       except Exception, inst:
@@ -1020,7 +1037,7 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
         #bird_list.add((a_point, a_time)
         #insert_simulated_bird(a_point, a_time)
 
-        querystring = "INSERT INTO temp_table_bird_selection VALUES (%s, %s, %s, GeometryFromText('POINT(" + str(point_y) + " " + str(point_x) + ")',54003))"
+        querystring = "INSERT INTO \"" + temp_table_bird_selection + "\" VALUES (%s, %s, %s, GeometryFromText('POINT(" + str(point_y) + " " + str(point_x) + ")',54003))"
         try:
             cur.execute(querystring, (a_random_bird, a_time, species))
         except Exception, inst:
