@@ -18,6 +18,12 @@ p.add_option('--config', '-c',
             metavar="FILE"
             )
 
+# If these options are not specified, defaults will be taken from the config file
+p.add_option('--closespace')
+p.add_option('--closetime')
+p.add_option('--spatialdomain')
+p.add_option('--temporaldomain')
+
 options, arguments = p.parse_args()
 
 config_file = options.config
@@ -34,6 +40,25 @@ dycast.init_db()
 
 riskdate = options.date 
 
+(default_cs, default_ct, default_sd, default_td) = dycast.get_default_parameters()
+
+if options.closespace:
+  cs = options.closespace
+else:
+  cs = default_cs
+if options.closetime:
+  ct = options.closetime
+else:
+  ct = default_ct
+if options.spatialdomain:
+  sd = options.spatialdomain
+else:
+  sd = default_sd
+if options.temporaldomain:
+  td = options.temporaldomain
+else:
+  td = default_td
+
 if riskdate == "today" or not riskdate:
     riskdate = datetime.date.today()
 else:
@@ -47,11 +72,11 @@ else:
         sys.exit()
 
 if options.endpoly and options.startpoly:
-    dycast.daily_risk(riskdate, options.startpoly, options.endpoly)
+    dycast.daily_risk(riskdate, cs, ct, sd, td, options.startpoly, options.endpoly)
 elif options.endpoly and not options.startpoly:
     print "ERROR: the endpoly option is only supported along with startpoly"
 elif options.startpoly:
-    dycast.daily_risk(riskdate, options.startpoly)
+    dycast.daily_risk(riskdate, cs, ct, sd, td, options.startpoly)
 else:
-    dycast.daily_risk(riskdate)
+    dycast.daily_risk(riskdate, cs, ct, sd, td)
 
