@@ -106,20 +106,36 @@ class DYCAST_control(ttk.Frame):
             self.daily_risk_entry2.get()
         )
         oneday = datetime.timedelta(days=1)
-
-        while (curdate <= enddate):
-            self.status_label["text"] = "Status: generating risk... %s" % curdate
-            self.status_label.update_idletasks()
-            try:
-                dycast.daily_risk(curdate)
-                #dycast.daily_risk(curdate, 5580000, 5710000) # for testing
-            except:
-                tkMessageBox.showwarning(
-                    "Daily risk",
-                    "Could not run daily risk for %s" % curdate
-                )
-                break
-            curdate = curdate + oneday
+        
+        # TODO: really, I should query the databsae to see which possible parameter
+        # sets exist, and offer these to the user instead of letting them specify
+        # their own.
+        
+        cs = self.daily_risk_cs_entry.get()
+        ct = self.daily_risk_ct_entry.get()
+        sd = self.daily_risk_sd_entry.get()
+        td = self.daily_risk_td_entry.get()
+        
+        param_id = dycast.get_param_record_id(cs, ct, sd, td)
+        if not param_id:
+            tkMessageBox.showerror(
+                "Daily risk",
+                "Cannot run daily risk: monte carlo simulations have not been generated for this set of parameters. Choose different parameters, or generate them from the Initialization window."
+            )
+        else:
+            while (curdate <= enddate):
+                self.status_label["text"] = "Status: generating risk... %s" % curdate
+                self.status_label.update_idletasks()
+                try:
+                    #dycast.daily_risk(curdate, cs, ct, sd, td)
+                    dycast.daily_risk(curdate, cs, ct, sd, td, 5580000, 5710000) # for testing
+                except:
+                    tkMessageBox.showwarning(
+                        "Daily risk",
+                        "Could not run daily risk for %s" % curdate
+                    )
+                    break
+                curdate = curdate + oneday
 
         self.daily_risk_button["state"] = NORMAL
         self.status_label["text"] = "Status: ready"
@@ -324,7 +340,7 @@ class DYCAST_control(ttk.Frame):
 
         self.daily_risk_entry1 = ttk.Entry(self.daily_frame)
         self.daily_risk_entry1.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
-        self.daily_risk_entry1.grid(column=1, row=4)
+        self.daily_risk_entry1.grid(column=1, row=4, sticky=(W, S))
 
         self.label_entry2 = ttk.Label(self.daily_frame)
         self.label_entry2["text"] = "end date:"
@@ -332,7 +348,7 @@ class DYCAST_control(ttk.Frame):
 
         self.daily_risk_entry2 = ttk.Entry(self.daily_frame)
         self.daily_risk_entry2.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
-        self.daily_risk_entry2.grid(column=3, row=4)
+        self.daily_risk_entry2.grid(column=3, row=4, sticky=(W, S))
 
         self.daily_risk_button = ttk.Button(self.daily_frame)
         self.daily_risk_button["text"] = "run risk"
@@ -340,47 +356,83 @@ class DYCAST_control(ttk.Frame):
 
         self.daily_risk_button.grid(column=7, row=4)
 
+        self.daily_risk_params_frame = ttk.Frame(self.daily_frame)
+            
+        self.daily_risk_cs_label = ttk.Label(self.daily_risk_params_frame)
+        self.daily_risk_cs_label["text"] = "closeness in space (miles):"
+        self.daily_risk_cs_label.grid(column=0, row=50, sticky=(E))
+
+        self.daily_risk_cs_entry = ttk.Entry(self.daily_risk_params_frame, width=5)
+        self.daily_risk_cs_entry.insert(0, dycast.get_default_parameters()[0])
+        self.daily_risk_cs_entry.grid(column=1, row=50)
+        
+        self.daily_risk_ct_label = ttk.Label(self.daily_risk_params_frame)
+        self.daily_risk_ct_label["text"] = "closeness in time (days):"
+        self.daily_risk_ct_label.grid(column=2, row=50, sticky=(E))
+        
+        self.daily_risk_ct_entry = ttk.Entry(self.daily_risk_params_frame, width=5)
+        self.daily_risk_ct_entry.insert(0, dycast.get_default_parameters()[1])
+        self.daily_risk_ct_entry.grid(column=3, row=50)
+        
+        self.daily_risk_sd_label = ttk.Label(self.daily_risk_params_frame)
+        self.daily_risk_sd_label["text"] = "spatial domain (miles):"
+        self.daily_risk_sd_label.grid(column=4, row=50, sticky=(E))
+
+        self.daily_risk_sd_entry = ttk.Entry(self.daily_risk_params_frame, width=5)
+        self.daily_risk_sd_entry.insert(0, dycast.get_default_parameters()[2])
+        self.daily_risk_sd_entry.grid(column=5, row=50)
+        
+        self.daily_risk_td_label = ttk.Label(self.daily_risk_params_frame)
+        self.daily_risk_td_label["text"] = "temporal domain (days):"
+        self.daily_risk_td_label.grid(column=6, row=50, sticky=(E))
+        
+        self.daily_risk_td_entry = ttk.Entry(self.daily_risk_params_frame, width=5)
+        self.daily_risk_td_entry.insert(0, dycast.get_default_parameters()[3])
+        self.daily_risk_td_entry.grid(column=7, row=50) 
+        
+        self.daily_risk_params_frame.grid(column=0, row=50, columnspan=8)
+
         self.sep2 = ttk.Separator(self.daily_frame)
-        self.sep2.grid(column=0, row=5, columnspan=8, sticky=(N,S,E,W), ipadx=40)
+        self.sep2.grid(column=0, row=60, columnspan=8, sticky=(N,S,E,W), ipadx=40)
 
         self.label3 = ttk.Label(self.daily_frame)
         self.label3["text"] = "export daily risk for the following date(s): (in YYYY-MM-DD format)\n"
-        self.label3.grid(column=0, row=6, columnspan=7, sticky=(W, S))
+        self.label3.grid(column=0, row=70, columnspan=7, sticky=(W, S))
 
         self.label_export_dir_entry = ttk.Label(self.daily_frame)
         self.label_export_dir_entry["text"] = "export directory:"
-        self.label_export_dir_entry.grid(column=0, row=7)
+        self.label_export_dir_entry.grid(column=0, row=80)
 
         self.export_dir_entry = ttk.Entry(self.daily_frame)
-        self.export_dir_entry.grid(column=1, row=7, columnspan=6, sticky=(E,W))
+        self.export_dir_entry.grid(column=1, row=80, columnspan=6, sticky=(E,W))
 
         self.browse_export_dir_button = ttk.Button(self.daily_frame)
         self.browse_export_dir_button["text"] = "browse"
         self.browse_export_dir_button["command"] =  self.set_export_dir
 
-        self.browse_export_dir_button.grid(column=7, row=7)
+        self.browse_export_dir_button.grid(column=7, row=80)
 
         self.label_entry1 = ttk.Label(self.daily_frame)
         self.label_entry1["text"] = "start date:"
-        self.label_entry1.grid(column=0, row=8)
+        self.label_entry1.grid(column=0, row=90)
 
         self.export_risk_entry1 = ttk.Entry(self.daily_frame)
         self.export_risk_entry1.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
-        self.export_risk_entry1.grid(column=1, row=8)
+        self.export_risk_entry1.grid(column=1, row=90, sticky=(W, S))
 
         self.label_entry2 = ttk.Label(self.daily_frame)
         self.label_entry2["text"] = "end date:"
-        self.label_entry2.grid(column=2, row=8)
+        self.label_entry2.grid(column=2, row=90)
 
         self.export_risk_entry2 = ttk.Entry(self.daily_frame)
         self.export_risk_entry2.insert(0, datetime.date.today().strftime("%Y-%m-%d"))
-        self.export_risk_entry2.grid(column=3, row=8)
+        self.export_risk_entry2.grid(column=3, row=90, sticky=(W, S))
 
         self.export_risk_button = ttk.Button(self.daily_frame)
         self.export_risk_button["text"] = "export"
         self.export_risk_button["command"] = self.run_export_risk
 
-        self.export_risk_button.grid(column=7, row=8)
+        self.export_risk_button.grid(column=7, row=90)
 
         # Begin "postseason" page in the notebook
 
@@ -472,7 +524,7 @@ class DYCAST_control(ttk.Frame):
         self.kappa_button["text"] = "run kappa"
         self.kappa_button["command"] =  self.run_kappa
         
-        self.kappa_button.grid(column=6, row=6)
+        self.kappa_button.grid(column=6, row=5)
        
         # Begin "initialization" page in the notebook
         
@@ -491,7 +543,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_close_space_label.grid(column=0, row=1, sticky=(E))
 
         self.nmcm_close_space_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_close_space_entry.insert(0, "0.25")
+        self.nmcm_close_space_entry.insert(0, dycast.get_default_parameters()[0])
         self.nmcm_close_space_entry.grid(column=1, row=1)
         
         self.nmcm_close_time_label = ttk.Label(self.init_frame)
@@ -499,7 +551,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_close_time_label.grid(column=2, row=1, sticky=(E))
         
         self.nmcm_close_time_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_close_time_entry.insert(0, "3")
+        self.nmcm_close_time_entry.insert(0, dycast.get_default_parameters()[1])
         self.nmcm_close_time_entry.grid(column=3, row=1)
         
         self.nmcm_spatial_domain_label = ttk.Label(self.init_frame)
@@ -507,7 +559,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_spatial_domain_label.grid(column=4, row=1, sticky=(E))
 
         self.nmcm_spatial_domain_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_spatial_domain_entry.insert(0, "1.5")
+        self.nmcm_spatial_domain_entry.insert(0, dycast.get_default_parameters()[2])
         self.nmcm_spatial_domain_entry.grid(column=5, row=1)
         
         self.nmcm_temporal_domain_label = ttk.Label(self.init_frame)
@@ -515,7 +567,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_temporal_domain_label.grid(column=6, row=1, sticky=(E))
         
         self.nmcm_temporal_domain_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_temporal_domain_entry.insert(0, "21")
+        self.nmcm_temporal_domain_entry.insert(0, dycast.get_default_parameters()[3])
         self.nmcm_temporal_domain_entry.grid(column=7, row=1)
         
         self.nmcm_start_number_label = ttk.Label(self.init_frame)
@@ -523,7 +575,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_start_number_label.grid(column=0, row=2, sticky=(E))
 
         self.nmcm_start_number_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_start_number_entry.insert(0, "15")
+        self.nmcm_start_number_entry.insert(0, dycast.get_default_threshold())
         self.nmcm_start_number_entry.grid(column=1, row=2)
         
         self.nmcm_end_number_label = ttk.Label(self.init_frame)
@@ -552,7 +604,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_load_cs_label.grid(column=0, row=7, sticky=(E))
 
         self.nmcm_load_cs_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_load_cs_entry.insert(0, "0.25")
+        self.nmcm_load_cs_entry.insert(0, dycast.get_default_parameters()[0])
         self.nmcm_load_cs_entry.grid(column=1, row=7)
         
         self.nmcm_load_ct_label = ttk.Label(self.init_frame)
@@ -560,7 +612,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_load_ct_label.grid(column=2, row=7, sticky=(E))
         
         self.nmcm_load_ct_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_load_ct_entry.insert(0, "3")
+        self.nmcm_load_ct_entry.insert(0, dycast.get_default_parameters()[1])
         self.nmcm_load_ct_entry.grid(column=3, row=7)
         
         self.nmcm_load_sd_label = ttk.Label(self.init_frame)
@@ -568,7 +620,7 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_load_sd_label.grid(column=4, row=7, sticky=(E))
 
         self.nmcm_load_sd_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_load_sd_entry.insert(0, "1.5")
+        self.nmcm_load_sd_entry.insert(0, dycast.get_default_parameters()[2])
         self.nmcm_load_sd_entry.grid(column=5, row=7)
         
         self.nmcm_load_td_label = ttk.Label(self.init_frame)
@@ -576,25 +628,25 @@ class DYCAST_control(ttk.Frame):
         self.nmcm_load_td_label.grid(column=6, row=7, sticky=(E))
         
         self.nmcm_load_td_entry = ttk.Entry(self.init_frame, width=5)
-        self.nmcm_load_td_entry.insert(0, "21")
+        self.nmcm_load_td_entry.insert(0, dycast.get_default_parameters()[3])
         self.nmcm_load_td_entry.grid(column=7, row=7) 
         
         self.nmcm_load_file_label = ttk.Label(self.init_frame)
         self.nmcm_load_file_label["text"] = "filename:"
-        self.nmcm_load_file_label.grid(column=0, row=8)
+        self.nmcm_load_file_label.grid(column=0, row=90)
         
         self.nmcm_load_file_entry = ttk.Entry(self.init_frame)
-        self.nmcm_load_file_entry.grid(column=1, row=8, columnspan=7, sticky=(E, W))
+        self.nmcm_load_file_entry.grid(column=1, row=90, columnspan=7, sticky=(E, W))
         
         self.nmcm_load_file_button = ttk.Button(self.init_frame)
         self.nmcm_load_file_button["text"] = "browse"
         self.nmcm_load_file_button["command"] = self.set_nmcm_import_file
-        self.nmcm_load_file_button.grid(column=8, row=8)
+        self.nmcm_load_file_button.grid(column=8, row=90)
         
         self.nmcm_load_button = ttk.Button(self.init_frame)
         self.nmcm_load_button["text"] = "load results"
         self.nmcm_load_button["command"] = self.load_nmcm
-        self.nmcm_load_button.grid(column=8, row=9)
+        self.nmcm_load_button.grid(column=8, row=100)
         
         ##
         
