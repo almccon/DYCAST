@@ -149,8 +149,8 @@ def read_config(filename):
     dist_margs_table = config.get("database", "distribution_marginals_table")
     dist_margs_params_table = config.get("database", "distribution_marginals_params")
 
-    sd = float(config.get("dycast", "spatial_domain")) * miles_to_metres
-    cs = float(config.get("dycast", "close_in_space")) * miles_to_metres
+    sd = float(config.get("dycast", "spatial_domain"))
+    cs = float(config.get("dycast", "close_in_space"))
     ct = int(config.get("dycast", "close_in_time"))
     td = int(config.get("dycast", "temporal_domain"))
     threshold = int(config.get("dycast", "bird_threshold"))
@@ -338,13 +338,13 @@ def export_risk(riskdate, format = "dbf", path = None):
         # Currently just sprints to stdout.  Fix this later if needed
         for row in rows:
             # Be careful of the ordering of space and time in the db vs the txt file
-            [id, num_birds, close_pairs, close_space, close_time, nmcm] = row
-            print "%s\t1.5\t0.2500\t3\t%s\t%s\t?.???\t%s\t%s\t%s" % (id, num_birds, close_pairs, close_time, close_space, nmcm)
+            [id, num_birds, close_pairs, close_space_count, close_time_count, nmcm] = row
+            print "%s\t1.5\t0.2500\t3\t%s\t%s\t?.???\t%s\t%s\t%s" % (id, num_birds, close_pairs, close_time_count, close_space_count, nmcm)
         txt_close()
     else:
         for row in rows:
             # Be careful of the ordering of space and time in the db vs the txt file
-            [id, num_birds, close_pairs, close_space, close_time, nmcm] = row
+            [id, num_birds, close_pairs, close_space_count, close_time_count, nmcm] = row
             dbf_print(id, nmcm)
         dbf_close()
         if using_tmp:
@@ -381,9 +381,9 @@ def init_dbf_out(riskdate, path = None):
     #TODO: make this an object
     return dbfn
 
-def txt_print(id, num_birds, close_pairs, close_space, close_time, nmcm):
+def txt_print(id, num_birds, close_pairs, close_space_count, close_time_count, nmcm):
     """Print one line of risk to stdout."""
-    print "%s\t1.5\t0.2500\t3\t%s\t%s\t?.???\t%s\t%s\t%s" % (id, num_birds, close_pairs, close_time, close_space, nmcm)
+    print "%s\t1.5\t0.2500\t3\t%s\t%s\t?.???\t%s\t%s\t%s" % (id, num_birds, close_pairs, close_time_count, close_space_count, nmcm)
     
 def dbf_print(id, nmcm):
     """Print one line of risk to dbf."""
@@ -686,11 +686,11 @@ def get_county_id_from_county_name(county_name):
     #TODO: should raise a warning if the county is not found (that is, the select might not fail, but the result could still be empty)
     return cur.fetchone()[0]
 
-def check_bird_count(bird_tab, tile_id):
+def check_bird_count(bird_tab, tile_id, spatial_domain):
     """Return the number of birds within the spatial domain of the tile center.""" 
     querystring = "SELECT count(*) from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
-        cur.execute(querystring, (tile_id, sd))
+        cur.execute(querystring, (tile_id, spatial_domain))
     except Exception, inst:
         conn.rollback()
         logging.error("can't select bird count")
@@ -699,11 +699,11 @@ def check_bird_count(bird_tab, tile_id):
     new_row = cur.fetchone()
     return new_row[0]
 
-def print_bird_list(bird_tab, tile_id):
+def print_bird_list(bird_tab, tile_id, spatial_domain):
     """Print the list of nearby birds. Prints to stdout (for debugging)"""
     querystring = "SELECT bird_id from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
-        cur.execute(querystring, (tile_id, sd))
+        cur.execute(querystring, (tile_id, spatial_domain))
     except Exception, inst:
         conn.rollback()
         logging.error("can't select bird list")
@@ -712,7 +712,7 @@ def print_bird_list(bird_tab, tile_id):
     for row in cur.fetchall():
         print row[0]
 
-def create_effects_poly_bird_table(bird_tab, tile_id):
+def create_effects_poly_bird_table(bird_tab, tile_id, spatial_domain):
     """Create a temp table including only birds within the spatial domain.
     
     Use this function to query the temp table already created (that only
@@ -728,16 +728,15 @@ def create_effects_poly_bird_table(bird_tab, tile_id):
     # (See Postgresql FAQ about functions and temp tables)
     querystring = "CREATE TABLE \"" + tablename + "\" AS SELECT * from \"" + bird_tab + "\" a, " + effects_poly_table + " b where b.tile_id = %s and st_distance(a.location,b.the_geom) < %s" 
     try:
-        #logging.info("selecting CREATE TABLE with st_distance(a.location,b.the_geom) < %s", sd)
-        cur.execute(querystring, (tile_id, sd))
+        cur.execute(querystring, (tile_id, spatial_domain))
     except:
         conn.rollback()
         cur.execute("DROP TABLE \"" + tablename + "\"")
-        cur.execute(querystring, (tile_id, sd))
+        cur.execute(querystring, (tile_id, spatial_domain))
     conn.commit()
     return tablename 
 
-def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
+def cst_cs_ct_wrapper(close_space_param, close_time_param):
     """A wrapper to a plpgsql function that returns the close in space 
     and close in time results for the birds loaded into the 
     temp_table_bird_selection table.
@@ -746,7 +745,7 @@ def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
     querystring = "SELECT * FROM cst_cs_ct(%s, %s)"
     try:
         #logging.info("selecting SELECT * FROM cst_cs_ct(%s, %s)", cs, ct)
-        cur.execute(querystring, (local_cs, local_ct))
+        cur.execute(querystring, (close_space_param, close_time_param))
     except Exception, inst:
         conn.rollback()
         logging.error("can't select cst_cs_ct function")
@@ -754,7 +753,7 @@ def cst_cs_ct_wrapper(local_cs = cs, local_ct = ct):
         sys.exit()
     return cur.fetchall()
   
-def nmcm_wrapper(num_birds, close_pairs, close_space, close_time):
+def nmcm_wrapper(num_birds, close_pairs, close_space_count, close_time_count):
     """A wrapper to the plpgsql function that returns the monte carlo
     probabililty (the New Monte Carlo Marginals, hence "nmcm") for the
     given parameters.
@@ -762,7 +761,7 @@ def nmcm_wrapper(num_birds, close_pairs, close_space, close_time):
     
     querystring = "SELECT * FROM nmcm(%s, %s, %s, %s)"
     try:
-        cur.execute(querystring, (num_birds, close_pairs, close_space, close_time))
+        cur.execute(querystring, (num_birds, close_pairs, close_space_count, close_time_count))
     except Exception, inst:
         conn.rollback()
         logging.error("can't select nmcm function")
@@ -770,13 +769,13 @@ def nmcm_wrapper(num_birds, close_pairs, close_space, close_time):
         sys.exit()
     return cur.fetchall()
   
-def insert_result(riskdate, tile_id, num_birds, close_pairs, close_time, close_space, nmcm):
+def insert_result(riskdate, tile_id, num_birds, close_pairs, close_space_count, close_time_count, nmcm):
     """Store the risk result (and # of birds, etc) for the given date and tile_id."""
     tablename = "risk" + riskdate.strftime("%Y-%m-%d") 
     querystring = "INSERT INTO \"" + tablename + "\" (tile_id, num_birds, close_pairs, close_space, close_time, nmcm) VALUES (%s, %s, %s, %s, %s, %s)"
     try:
         # Be careful of the ordering of space and time in the db vs the txt file
-        cur.execute(querystring, (tile_id, num_birds, close_pairs, close_space, close_time, nmcm))
+        cur.execute(querystring, (tile_id, num_birds, close_pairs, close_space_count, close_time_count, nmcm))
     except Exception, inst:
         conn.rollback()
         logging.error("couldn't insert effects_poly risk")
@@ -785,12 +784,23 @@ def insert_result(riskdate, tile_id, num_birds, close_pairs, close_time, close_s
     conn.commit()
          
 
-def daily_risk(riskdate, startpoly=None, endpoly=None):
+def daily_risk(riskdate, close_space_param, close_time_param, spatial_domain_param, temporal_domain_param, startpoly=None, endpoly=None):
     """For a given date, loop over all the polygons and calculate risk."""
+  
+    local_close_space_param = float(close_space_param) * miles_to_metres
+    local_close_time_param = close_time_param
+    local_spatial_domain_param = float(spatial_domain_param) * miles_to_metres
+    local_temporal_domain_param = temporal_domain_param 
+     
+    param_id = get_param_record_id(local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
+    if not param_id:
+      logging.error("Monte carlo simulations have not been created for parameters cs: %s, ct: %s, sd: %s, td: %s", local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
+      return 0 
+    
     rows = get_ids(startpoly, endpoly)
 
     risk_tab = create_daily_risk_table(riskdate)
-    dead_birds_daterange = create_temp_bird_table(riskdate, td)
+    dead_birds_daterange = create_temp_bird_table(riskdate, local_temporal_domain_param)
 
     st = time.time()
     if startpoly or endpoly:
@@ -804,19 +814,17 @@ def daily_risk(riskdate, startpoly=None, endpoly=None):
         inc += 1
         if not inc % 1000:
             logging.debug("tile_id: %s done: %s time elapsed: %s", tile_id, inc, time.time() - st)
-        num_birds = check_bird_count(dead_birds_daterange, tile_id)
+        num_birds = check_bird_count(dead_birds_daterange, tile_id, local_spatial_domain_param)
         if num_birds >= threshold:
-            create_effects_poly_bird_table(dead_birds_daterange, tile_id)
-            st0 = time.time()
-            results = cst_cs_ct_wrapper()
-            st1 = time.time()
+            create_effects_poly_bird_table(dead_birds_daterange, tile_id, local_spatial_domain_param)
+            results = cst_cs_ct_wrapper(local_close_space_param, local_close_time_param)
             close_pairs = results[0][0]
-            close_space = results[1][0] - close_pairs
-            close_time = results[2][0] - close_pairs
-            #print "tile ", tile_id, "found", num_birds, "birds (above threshold) %s actual close pairs, %s close in space, %s close in time" % (close_pairs, close_space, close_time)
+            close_space_count = results[1][0] - close_pairs
+            close_time_count = results[2][0] - close_pairs
+            #print "tile ", tile_id, "found", num_birds, "birds (above threshold) %s actual close pairs, %s close in space, %s close in time" % (close_pairs, close_space_count, close_time_count)
             #print_bird_list(dead_birds_daterange, tile_id)
-            result2 = nmcm_wrapper(num_birds, close_pairs, close_space, close_time)
-            insert_result(riskdate, tile_id, num_birds, close_pairs, close_time, close_space, result2[0][0])
+            result2 = nmcm_wrapper(num_birds, close_pairs, close_space_count, close_time_count)
+            insert_result(riskdate, tile_id, num_birds, close_pairs, close_space_count, close_time_count, result2[0][0])
      
     #logging.info("Finished daily_risk for %s: done %s tiles, time elapsed: %s seconds", riskdate, inc, time.time() - st)
     logging.info("Finished daily_risk for %s: done %s tiles", riskdate, inc)
@@ -854,7 +862,7 @@ def calculate_probabilities(param_record_id=None):
   rows = cur.fetchall()
   
   for row in rows:
-    [param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time] = row
+    [param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space_count, close_time_count] = row
     #if cumulative_probability is None or cumulative_probability < 0:
     if cumulative_probability > 0:
       logging.warning("cumulative_probability already exists. Overwriting...")
@@ -867,7 +875,7 @@ def calculate_probabilities(param_record_id=None):
 
     querystring = "SELECT * FROM \"" + dist_margs_table + "\" WHERE param_id = %s and number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
     try:
-      cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, close_space, close_time))
+      cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, close_space_count, close_time_count))
     except Exception, inst:
       logging.error("cannot make sub-selection from %s", dist_margs_table)
       logging.error(inst)
@@ -876,7 +884,7 @@ def calculate_probabilities(param_record_id=None):
     newrows = cur.fetchall()
     for newrow in newrows:
       # TODO: check for empty percentage
-      [param_record_id1, number_of_birds1, close_pairs1, probability1, cumulative_probability1, close_space1, close_time1] = newrow
+      [param_record_id1, number_of_birds1, close_pairs1, probability1, cumulative_probability1, close_space_count1, close_time_count1] = newrow
       
       counter += probability1 
 
@@ -886,7 +894,7 @@ def calculate_probabilities(param_record_id=None):
     
     querystring = "UPDATE \"" + dist_margs_table + "\" SET cumulative_probability = %s WHERE param_id = %s and number_of_birds = %s and close_pairs >= %s and close_space >= %s and close_time >= %s"
     try:
-      cur.execute(querystring, (cumulative_probability, param_record_id, number_of_birds, close_pairs, close_space, close_time))
+      cur.execute(querystring, (cumulative_probability, param_record_id, number_of_birds, close_pairs, close_space_count, close_time_count))
     except Exception, inst:
       conn.rollback()
       logging.error("can't update cumulative_probability")
@@ -894,20 +902,24 @@ def calculate_probabilities(param_record_id=None):
     conn.commit()
     
     #print "cumulative_probability: %s" % cumulative_probability    
-
+  return 1
   # end outer loop
 
+def get_default_parameters():
+  return (cs, ct, sd, td)
+
+def get_default_threshold():
+  return threshold 
+
 def get_param_record_id(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param):
-  """Return the id for this particular combination of parameters. Create new id if none exists.
-  """
-  
+  """Return the id for this particular combination of parameters."""
   querystring = "SELECT param_id FROM \"" + dist_margs_params_table + "\" WHERE close_space_param = %s and close_time_param = %s and spatial_domain_param = %s and temporal_domain_param = %s"
   try:
     cur.execute(querystring, (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param))
   except Exception, inst:
     logging.error("couldn't select param_id from %s", dist_margs_params_table)
     logging.error(inst)
-    return -1
+    return 0
   rows = cur.fetchall()
   if len(rows) > 1:
     logging.warning("got more than one param_id! This should not happen. Returning the first one.")
@@ -915,34 +927,41 @@ def get_param_record_id(close_space_param, close_time_param, spatial_domain_para
   elif len(rows) == 1:
     return rows[0][0]
   else:
-    # If record doesn't exist, create a new one... 
-    querystring = "INSERT INTO \"" + dist_margs_params_table + "\" (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param) VALUES (%s, %s, %s, %s) RETURNING param_id"
-    try:
-      cur.execute(querystring, (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param))
-    except Exception, inst:
-      conn.rollback()
-      logging.error("couldn't insert new parameters set")
-      logging.error(inst)
-      return -1
-    conn.commit()
-    rows = cur.fetchall()
-    return rows[0][0]
+    # Param record does not exist
+    return 0
+  
+def create_param_record_id(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param):
+  """Create a new id for this particular combination of parameters."""
+  querystring = "INSERT INTO \"" + dist_margs_params_table + "\" (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param) VALUES (%s, %s, %s, %s) RETURNING param_id"
+  try:
+    cur.execute(querystring, (close_space_param, close_time_param, spatial_domain_param, temporal_domain_param))
+  except Exception, inst:
+    conn.rollback()
+    logging.error("couldn't insert new parameters set")
+    logging.error(inst)
+    return 0
+  conn.commit()
+  rows = cur.fetchall()
+  return rows[0][0]
 
 def create_dist_margs(close_space_param, close_time_param, spatial_domain_param, temporal_domain_param, start_number=15, end_number=100):
   """dist_margs means "distribution marginals" and is the result of the
   monte carlo simulations.  See Theophilides et al. for more information.
   
-  close_space and spatial_domain should be given in units of miles,
+  close_space_param and spatial_domain should be given in units of miles,
   which will be immediately converted to metres. 
   close_time and temporal_domain are in units of days.
   """
   
-  local_close_space = float(close_space_param) * miles_to_metres
-  local_close_time = close_time_param
-  local_spatial_domain = float(spatial_domain_param) * miles_to_metres
-  local_temporal_domain = temporal_domain_param
+  local_close_space_param = float(close_space_param) * miles_to_metres
+  local_close_time_param = close_time_param
+  local_spatial_domain_param = float(spatial_domain_param) * miles_to_metres
+  local_temporal_domain_param = temporal_domain_param
   
-  param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
+  param_record_id = get_param_record_id(local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
+  if not param_record_id:
+    param_record_id = create_param_record_id(local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
+    
 
   # TODO: This should prompt before deleting!
   
@@ -991,12 +1010,12 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
       # Randomly scatter the birds
       # Should this range start with 0 or 1? 
       for a_random_bird in range(1, a_bird_number):
-        a_distance = random()*local_spatial_domain
+        a_distance = random()*local_spatial_domain_param
         an_angle = random()*2*math.pi
         point_x = center_x + math.cos(an_angle)*a_distance
         point_y = center_y + math.sin(an_angle)*a_distance
 
-        a_time = datetime.date.today() - timedelta(random()*local_temporal_domain)
+        a_time = datetime.date.today() - timedelta(random()*local_temporal_domain_param)
         
         #bird_list.add((a_point, a_time)
         #insert_simulated_bird(a_point, a_time)
@@ -1015,35 +1034,21 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
         conn.commit()
 
       # pair the random birds
-      close_space_time_p = 0
-      close_space_p = 0
-      close_time_p = 0
+      close_pairs = 0
+      close_space_count = 0
+      close_time_count = 0
       
-      #for db_1 in range(1, len(bird_list)-1):
-      #  dead_bird_1 = bird_list[db_1]
-      #  for db_2 in range (db_1+1, len(bird_list)):
-      #    dead_bird_2 = bird_list[db_2]
-      #    print "testing", dead_bird_1, "against", dead_bird_2
-      #    space_distance = get_bird_distance(dead_bird_1, dead_bird_2)
-      #    time_distance = abs(dead_bird_1[2] - dead_bird_2[2])
-      #    if space_distance < local_close_space and time_distance < local_close_time:
-      #      close_space_time_p += 1
-      #    if space_distance < local_close_space:
-      #      close_space_p += 1
-      #    if time_distance < local_close_time:
-      #      close_time_p += 1
-
-      results = cst_cs_ct_wrapper(local_close_space, local_close_time)
-      close_space_time_p = results[0][0]
-      close_space_p = results[1][0]
-      close_time_p = results[2][0]
+      results = cst_cs_ct_wrapper(local_close_space_param, local_close_time_param)
+      close_pairs = results[0][0]
+      close_space_count = results[1][0] - close_pairs
+      close_time_count = results[2][0] - close_pairs
 
       # See if we've already done this combination and arrived at the
       # same number of pairs. Note that there should be at most one record in the db 
 
       querystring = "SELECT probability FROM \"" + dist_margs_table + "\" WHERE param_id = %s and number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s" 
       try:
-        cur.execute(querystring, (param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+        cur.execute(querystring, (param_record_id, a_bird_number, close_pairs, close_space_count, close_time_count))
       except Exception, inst:
         conn.rollback()
         logging.error("can't select bird simulation result")
@@ -1061,7 +1066,7 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
 
         querystring = "INSERT INTO \"" + dist_margs_table + "\" (probability, param_id, number_of_birds, close_pairs, close_space, close_time) VALUES (%s, %s, %s, %s, %s, %s)" 
         try:
-          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_pairs, close_space_count, close_time_count))
         except Exception, inst:
           conn.rollback()
           logging.error("can't update bird simulation result")
@@ -1091,7 +1096,7 @@ def create_dist_margs(close_space_param, close_time_param, spatial_domain_param,
 
         querystring = "UPDATE \"" + dist_margs_table + "\" SET probability = %s WHERE param_id = %s and number_of_birds = %s and close_pairs = %s and close_space = %s and close_time = %s"
         try:
-          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_space_time_p, close_space_p, close_time_p))
+          cur.execute(querystring, (probability, param_record_id, a_bird_number, close_pairs, close_space_count, close_time_count))
         except Exception, inst:
           conn.rollback()
           logging.error("can't update bird simulation result")
@@ -1115,12 +1120,14 @@ def load_prepared_dist_margs(close_space_param, close_time_param, spatial_domain
   number_of_birds  close_pairs  probability  cumulative_probability  close_space  close_time
   """
   
-  local_close_space = float(close_space_param) * miles_to_metres
-  local_close_time = close_time_param
-  local_spatial_domain = float(spatial_domain_param) * miles_to_metres
-  local_temporal_domain = temporal_domain_param
+  local_close_space_param = float(close_space_param) * miles_to_metres
+  local_close_time_param = close_time_param
+  local_spatial_domain_param = float(spatial_domain_param) * miles_to_metres
+  local_temporal_domain_param = temporal_domain_param
   
-  param_record_id = get_param_record_id(local_close_space, local_close_time, local_spatial_domain, local_temporal_domain)
+  param_record_id = get_param_record_id(local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
+  if not param_record_id:
+    param_record_id = create_param_record_id(local_close_space_param, local_close_time_param, local_spatial_domain_param, local_temporal_domain_param)
   
   # wipe existing distributions
 
@@ -1140,14 +1147,14 @@ def load_prepared_dist_margs(close_space_param, close_time_param, spatial_domain
       lines_read += 1
       
       try:
-        (number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time) = line.split("\t")
+        (number_of_birds, close_pairs, probability, cumulative_probability, close_space_count, close_time_count) = line.split("\t")
       except ValueError:
         logging.error("incorrect number of fields: %s", line.rstrip())
         return 0
       
       querystring = "INSERT INTO \"" + dist_margs_table + "\" (param_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time) VALUES (%s, %s, %s, %s, %s, %s, %s)"
       try:
-        cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space, close_time))
+        cur.execute(querystring, (param_record_id, number_of_birds, close_pairs, probability, cumulative_probability, close_space_count, close_time_count))
       except Exception, inst:
         conn.rollback()
         logging.error("couldn't insert monte carlo result from file")
