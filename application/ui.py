@@ -127,8 +127,8 @@ class DYCAST_control(ttk.Frame):
                 self.status_label["text"] = "Status: generating risk... %s" % curdate
                 self.status_label.update_idletasks()
                 try:
-                    #dycast.daily_risk(curdate, cs, ct, sd, td)
-                    dycast.daily_risk(curdate, cs, ct, sd, td, 5580000, 5710000) # for testing
+                    dycast.daily_risk(curdate, cs, ct, sd, td)
+                    #dycast.daily_risk(curdate, cs, ct, sd, td, 5580000, 5710000) # for testing
                 except:
                     tkMessageBox.showwarning(
                         "Daily risk",
