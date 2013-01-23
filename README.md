@@ -10,9 +10,9 @@ DYCAST has been tested on Microsoft Windows [which versions?] and Mac OS X (vers
 
 DYCAST depends on the following software:
 
-* [PostgreSQL](http://www.postgresql.org/) (tested on version 8.4 and 9.1)
-* [PostGIS](http://postgis.refractions.net/) (tested on version 1.5 and 2.0)
-* [Python](http://www.python.org/)
+* 	[PostgreSQL](http://www.postgresql.org/) (tested on version 8.4 and 9.1)
+* 	[PostGIS](http://postgis.refractions.net/) (tested on version 1.5 and 2.0)
+* 	[Python](http://www.python.org/)
 
 For Windows, download and install these requirements from the links provided, following the instructions on the respective web pages. For OS X, we recommend installing the pre-compiled binaries from [William Kyngesburye](http://www.kyngchaos.com/)
 
@@ -22,8 +22,8 @@ For Windows, download and install these requirements from the links provided, fo
 
 This repository contains sample data sufficient to get you started. (To understand the purpose of these datasets, please read the section below titled "About the DYCAST algorithm"). Included data:
 
-* A .5 mile analysis grid for the state of California
-* Monte Carlo simulations
+* 	A .5 mile analysis grid for the state of California
+* 	Monte Carlo simulations
 
 Unzip file *init.zip* which creates the folder *DYCAST/init*
 
@@ -32,9 +32,12 @@ Unzip file *birds.zip* which creates the folder *DYCAST/inbox*
 ### Initializing database
 
 For Windows, execute: 
-  DYCAST\application\setup_db.bat
+
+	DYCAST\application\setup_db.bat
+	
 For OS X:
-  DYCAST/application/setup_db.sh
+
+	DYCAST/application/setup_db.sh
 
 *setup_db.bat* will create the necessary PostgreSQL database and populate the DYCAST tables with the contents of the init folder. This may take some time.
 
@@ -48,32 +51,33 @@ You must populate the database with the locations of dead birds before you can r
 
 The dead bird data must be in TSV (tab separated values) files, in the following format:
 
-id	report_date	longitude	latitude	species
-479414	03/27/2008	-119.01529100 35.30386000 Mourning Dove
-479415	03/27/2008	-119.04693200 35.36288600 American Robin
-479416	03/27/2008	-119.14695300 35.39921000 European Starling
+	id	report_date	longitude	latitude	species
+	479414	03/27/2008	-119.01529100 35.30386000 Mourning Dove
+	479415	03/27/2008	-119.04693200 35.36288600 American Robin
+	479416	03/27/2008	-119.14695300 35.39921000 European Starling
 
 Once you have your dead bird data files in the correct format, there are two ways you can load them:
 
-* Open *C:\DYCAST\application\ui.bat* (double-click it)
+* 	Open *C:\DYCAST\application\ui.bat* (double-click it)
 
-  In the DYCAST control window that opens, click “select birds”. Select one or more dead bird export file and click “Open”. Then click “load birds”. Wait until loading is complete before running any analysis. Consult *C:\DYCAST\dycast_log.txt* to see detailed results of the bird load.
+	In the DYCAST control window that opens, click “select birds”. Select one or more dead bird export file and click “Open”. Then click “load birds”. Wait until loading is complete before running any analysis. Consult *C:\DYCAST\dycast_log.txt* to see detailed results of the bird load.
 
-* Alternatively, open a command prompt (from the start menu), change directory to *C:\DYCAST\application* and execute:
+* 	Alternatively, open a command prompt (from the start menu), change directory to *C:\DYCAST\application* and execute:
 
-     C:\DYCAST\application> load_birds.py ..\inbox\dycast_export_2007.tsv
+     	C:\DYCAST\application> load_birds.py ..\inbox\dycast_export_2007.tsv
 
-(replace “..\inbox\dycast_export_2007.tsv” with the filename of a dead bird export)
+	(replace “..\inbox\dycast_export_2007.tsv” with the filename of a dead bird export)
+	
 Repeat for any other .tsv files of dead birds.
 Using either method, any birds that already exist in the database (according to their ID) will be skipped, not overwritten.
 
 ## Directory structure
 
-C:\DYCAST
-  \inbox
-  \outbox
-  \application
-  \init
+	C:\DYCAST
+		\inbox
+		\outbox
+		\application
+		\init
 
 ### Inbox and outbox
 
@@ -83,46 +87,48 @@ The outbox is based on the “maildir” directory structure. These subfolders a
 
 ### Application
 
-  The “application” folder contains the Python scripts and libraries.
+The “application” folder contains the Python scripts and libraries.
 
 
-  Useful applications:
-    load_birds.py birdfile.tsv
-      (load dead birds into the database)
-    daily_risk.py YYYY-MM-DD
-      (run the DYCAST Knox Test for a day, generating risk)
+Useful applications:
+
+	load_birds.py birdfile.tsv
+		(load dead birds into the database)
+	daily_risk.py YYYY-MM-DD
+		(run the DYCAST Knox Test for a day, generating risk)
     export_risk.py
-      (exports DBF files for previously generated risk)
+		(exports DBF files for previously generated risk)
     daily_tasks.py
-      (includes all the above for current day, plus uploading and downloading)
+		(includes all the above for current day, plus uploading and downloading)
     ui.py
-      (graphical user interface for loading birds, generating risk and exporting risk)
+    	(graphical user interface for loading birds, generating risk and exporting risk)
 
-  Useful files:
-    dycast.config
-      (controls all the default DYCAST settings)
+Useful files:
+
+	dycast.config
+		(controls all the default DYCAST settings)
 
 ### Init
 
-  The “init” folder contains the SQL files to initialize the database with pre- calculated monte carlo distributions and the California analysis grid
+The “init” folder contains the SQL files to initialize the database with pre- calculated monte carlo distributions and the California analysis grid
 
 ### dycast_log.txt
 
-  The “dycast_log.txt” file contains detailed reports of each DYCAST operation executed.
+The “dycast_log.txt” file contains detailed reports of each DYCAST operation executed.
 
 ## Automation of daily tasks
 
-  On Windows, go to Start > Control Panel > Scheduled Tasks to open the Scheduled Task Wizard.
+On Windows, go to Start > Control Panel > Scheduled Tasks to open the Scheduled Task Wizard.
 
-  create a task...
-  you will be prompted to Browse for the program you want to run... choose C:\DYCAST\application\daily_tasks.py (daily_tasks.py includes FTPing and risk for 3 previous days)
-  If the above does not work, try the following more descriptive command
+First, create a task. You will be prompted to Browse for the program you want to run. Choose C:\DYCAST\application\daily_tasks.py (daily_tasks.py includes FTPing and risk for 3 previous days)
 
-     C:\Python25\python.exe C:\DYCAST\application\download_birds.py -c C:\DYCAST\application\dycast.config
+If the above does not work, try the following more descriptive command
 
-  Give the task a name, and choose the desired scheduling (in previous years, we would run daily tasks at 7pm PT, to give sufficient time for all of the new birds for the day to be included in the input file.)
+	C:\Python25\python.exe C:\DYCAST\application\download_birds.py -c C:\DYCAST\application\dycast.config
 
-  Or use individual tasks, if you are not using FTP to fetch and send data: 
+Give the task a name, and choose the desired scheduling (in previous years, we would run daily tasks at 7pm PT, to give sufficient time for all of the new birds for the day to be included in the input file.)
+
+Or use individual tasks, if you are not using FTP to fetch and send data: 
 
     load_birds.py (if you are placing them in inbox manually, not via FTP) 
 
@@ -130,24 +136,21 @@ The outbox is based on the “maildir” directory structure. These subfolders a
 
     export_risk.py (will place files in outbox, but not FTP them)
 
-  To check the status of system, open the log file: C:\DYCAST\dycast_log.txt
+To check the status of the system, open the log file: DYCAST\dycast_log.txt
 
 ## Manual workflow
 
-  Manual operation of the system is possible as an alternative to running it as a scheduled task, or can be used in addition, as long as a DYCAST scheduled task is not currently running.  
+Manual operation of the system is possible as an alternative to running it as a scheduled task, or can be used in addition, as long as a DYCAST scheduled task is not currently running.  
 
 ### Graphical User Interface
 
-  ui.py (simple graphical user interface). This application allows a more user-friendly method of loading bird data, running daily risk, and exporting risk. More detailed reports of the system status will continue to be reported in C:\DYCAST\dycast_log.txt
-
-  (FTPing of dead bird exports and generated risk to and from the server must be accomplished from an external program or from the command line)
+*ui.py* (simple graphical user interface). This application allows a more user-friendly method of loading bird data, running daily risk, and exporting risk. More detailed reports of the system status will continue to be reported in C:\DYCAST\dycast_log.txt
 
 ### Viewing Results
 
-  Resulting DBF files can be joined to a shapefile of effects_polys. 
+Resulting DBF files can be joined to a shapefile of effects_polys. 
 
-  PostgreSQL tables can be viewed and manipulated using PgAdminIII.
-
+PostgreSQL tables can be viewed and manipulated using PgAdminIII.
 
 ## Post-season analysis
 
@@ -159,9 +162,9 @@ The outbox is based on the “maildir” directory structure. These subfolders a
 
 ## About the DYCAST algorithm and parameters
 
-* TODO: Explain the principles
-* TODO: Explain the ecological parameters
-* TODO: Explain the Kappa parameters
+*	TODO: Explain the principles
+*	TODO: Explain the ecological parameters
+*	TODO: Explain the Kappa parameters
 
 ## Peer-reviewed articles about the DYCAST system:
 
